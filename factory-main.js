@@ -54,18 +54,18 @@ const state = {
   transition: 'dissolve',
   pathStyle: 'radial',
   step: 8,
-  scale: 0.78,
+  scale: 1,
   sizeWeight: 1,
   markRotation: 0,
   rotation: 0,
-  threshold: 0.18,
-  contrast: 1.18,
+  threshold: 0,
+  contrast: 1.2,
   detail: 0.5,
   highlightDetail: 0.5,
   duration: 1.7,
   blank: 0.24,
   hold: 0.55,
-  drift: 0,
+  drift: 0.08,
   ink: '#009cdb',
   paper: '#f7f3ec',
   shadowInk: '#23322d',
@@ -78,7 +78,7 @@ const state = {
   allowTransparency: false,
   sources: [],
   activeIndex: 0,
-  playing: true,
+  playing: false,
   animationStart: performance.now(),
   pausedAt: 0,
   frameId: 0,
@@ -1138,10 +1138,15 @@ const render = () => {
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     updateOutputs();
     if (caption) {
-      const fromName = state.sources[state.activeIndex]?.name || '素材';
-      const activePoints = state.pointSets[state.activeIndex]?.length || 0;
+      const displayIndex = state.morph && state.sources.length > 1 ? morph.fromIndex : state.activeIndex;
+      const fromName = state.sources[displayIndex]?.name || '素材';
+      const toName = state.morph && state.sources.length > 1 ? state.sources[morph.toIndex]?.name || fromName : fromName;
+      const activePoints = state.pointSets[displayIndex]?.length || 0;
+      const mediaMode = hasDynamicSource() ? '动态' : '静态';
       const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号' }[state.shape] || state.shape;
-      setCaption(state.exportStatus || `${fromName} / ${shapeLabel} / ${activePoints} 粒`);
+      setCaption(state.exportStatus || (state.morph && state.sources.length > 1
+        ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
+        : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`));
     }
     return;
   }
@@ -1172,20 +1177,18 @@ const render = () => {
 
   context.globalAlpha = 1;
 
-  if (!isAnimated) {
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    if (!renderCache.canvas || renderCache.canvas.width !== deviceWidth || renderCache.canvas.height !== deviceHeight) {
-      renderCache.canvas = document.createElement('canvas');
-      renderCache.canvas.width = deviceWidth;
-      renderCache.canvas.height = deviceHeight;
-      renderCache.ctx = renderCache.canvas.getContext('2d');
-    }
-    renderCache.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    renderCache.ctx.clearRect(0, 0, deviceWidth, deviceHeight);
-    renderCache.ctx.drawImage(canvas, 0, 0, deviceWidth, deviceHeight, 0, 0, deviceWidth, deviceHeight);
-    renderCache.signature = sig;
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  if (!renderCache.canvas || renderCache.canvas.width !== deviceWidth || renderCache.canvas.height !== deviceHeight) {
+    renderCache.canvas = document.createElement('canvas');
+    renderCache.canvas.width = deviceWidth;
+    renderCache.canvas.height = deviceHeight;
+    renderCache.ctx = renderCache.canvas.getContext('2d');
   }
+  renderCache.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  renderCache.ctx.clearRect(0, 0, deviceWidth, deviceHeight);
+  renderCache.ctx.drawImage(canvas, 0, 0, deviceWidth, deviceHeight, 0, 0, deviceWidth, deviceHeight);
+  renderCache.signature = sig;
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
 
   updateOutputs();
 
@@ -1207,10 +1210,21 @@ const render = () => {
   }
 };
 
+let _renderFrameSkip = 0;
 const requestRenderLoop = () => {
   if (state.frameId) return;
 
+  _renderFrameSkip = 0;
   const tick = () => {
+    const isOnlyDrift = state.drift > 0.001 && !state.morph && !hasDynamicSource();
+    if (isOnlyDrift) {
+      _renderFrameSkip += 1;
+      if (_renderFrameSkip < 3) {
+        state.frameId = state.playing ? window.requestAnimationFrame(tick) : 0;
+        return;
+      }
+      _renderFrameSkip = 0;
+    }
     render();
     state.frameId = state.playing ? window.requestAnimationFrame(tick) : 0;
   };
@@ -2168,18 +2182,18 @@ if (canvas && context) {
     state.transition = 'dissolve';
     state.pathStyle = 'radial';
     state.step = 8;
-    state.scale = 0.78;
+    state.scale = 1;
     state.sizeWeight = 1;
     state.markRotation = 0;
     state.rotation = 0;
-    state.threshold = 0.18;
-    state.contrast = 1.18;
+    state.threshold = 0;
+    state.contrast = 1.2;
     state.detail = 0.5;
     state.highlightDetail = 0.5;
     state.duration = 1.7;
     state.blank = 0.24;
     state.hold = 0.55;
-    state.drift = 0;
+    state.drift = 0.08;
     state.ink = '#009cdb';
     state.paper = '#f7f3ec';
     state.shadowInk = '#23322d';
