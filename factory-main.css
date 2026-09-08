@@ -136,7 +136,7 @@ button:focus-visible, input:focus-visible {
   display: flex;
   flex-direction: column;
   line-height: 1.1;
-  padding-top: 1px;
+  transform: translateY(1px);
 }
 
 .brand-name {
@@ -491,15 +491,15 @@ button:focus-visible, input:focus-visible {
 .about-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
 }
 .about-name {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   color: var(--text-1);
 }
 .about-en {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-4);
   letter-spacing: 0.8px;
   text-transform: uppercase;
@@ -510,8 +510,40 @@ button:focus-visible, input:focus-visible {
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
 }
+.about-credits {
+  margin-left: 4px;
+  margin-top: 18px;
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.6;
+}
+.about-credits a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.about-credits a:hover {
+  border-bottom-color: var(--accent);
+}
+.about-credits > div:last-child {
+  padding-left: 1px;
+}
 .about-dialog .confirm-actions {
   margin-top: 18px;
+}
+.btn-link {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  padding: 4px 10px;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+.btn-link:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Buttons */
@@ -665,7 +697,7 @@ html.panel-collapsed .control-panel {
 
 .panel-tab {
   flex: 1;
-  padding: 6px 0;
+  padding: 3px 0;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-2);
@@ -723,10 +755,10 @@ html.panel-collapsed .control-panel {
 
 .toggle-compact {
   padding: 0;
-  border: 0;
-  background: transparent;
+  border: none !important;
+  background: transparent !important;
   outline: none;
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
 .toggle-compact:hover {
@@ -799,6 +831,12 @@ html.panel-collapsed .control-panel {
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+.panel-row-inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .row-label {
@@ -1150,6 +1188,10 @@ html.panel-collapsed .control-panel {
   color: var(--accent);
 }
 
+.play-btn[hidden] {
+  display: none !important;
+}
+
 .play-btn .play-icon { display: none; }
 .play-btn.playing .play-pause { display: block; }
 .play-btn:not(.playing) .play-play { display: block; }
@@ -1209,6 +1251,8 @@ html.panel-collapsed .control-panel {
   font-weight: 600;
   color: var(--accent);
   font-family: var(--font-mono);
+  padding-right: 10px;
+  border-right: 1px solid var(--border-1);
 }
 
 .tag-dot {

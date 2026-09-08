@@ -386,8 +386,20 @@ const updateOutputs = () => {
   if (outputs.canvasRes) outputs.canvasRes.textContent = String(state.canvasRes);
 };
 
+const isPlayable = () => {
+  return (state.morph && state.sources.length > 1)
+    || hasDynamicSource();
+};
+
 const updatePlayButton = () => {
   if (!playButton) return;
+  const show = isPlayable();
+  playButton.hidden = !show;
+  if (!show && state.playing) {
+    state.playing = false;
+    state.pausedAt = 0;
+    setMediaPlayback(false);
+  }
   const label = state.playing ? '暂停预览' : '播放预览';
   playButton.setAttribute('aria-label', label);
   playButton.setAttribute('title', label);
@@ -409,13 +421,13 @@ const removeSource = (idx) => {
   if (state.sources.length === 0) {
     state.activeIndex = 0;
     state.playing = false;
-    updatePlayButton();
   } else if (state.activeIndex >= state.sources.length) {
     state.activeIndex = state.sources.length - 1;
   } else if (state.activeIndex > idx) {
     state.activeIndex -= 1;
   }
 
+  updatePlayButton();
   invalidatePointSets();
   renderMenu();
   render();
@@ -615,7 +627,7 @@ const showConfirm = (message) => new Promise((resolve) => {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
 });
 
-const APP_VERSION = '1.0.1-81741';
+const APP_VERSION = '1.0.2-82052';
 
 const showAbout = () => {
   const overlay = document.createElement('div');
@@ -635,7 +647,12 @@ const showAbout = () => {
           <div class="about-version">版本：${APP_VERSION}</div>
         </div>
       </div>
+      <div class="about-credits">
+        <div>本开源项目采用 <a href="https://github.com/AomiRaku/Halftone-Factory/blob/main/LICENSE" target="_blank" rel="noopener">MIT 协议</a></div>
+        <div>Made with ♥ By 羽梦千景</div>
+      </div>
       <div class="confirm-actions">
+        <a href="https://github.com/AomiRaku/Halftone-Factory" target="_blank" rel="noopener" class="btn btn-link">在 GitHub 查看</a>
         <button type="button" class="btn btn-primary" data-about-done>完成</button>
       </div>
     </div>
@@ -1086,7 +1103,7 @@ const buildRenderSignature = (width, height, ratio) => {
     width, height, ratio.toFixed(5),
     state.activeIndex,
     state.shape, state.colorMode, state.pathStyle, state.transition,
-    state.step, state.scale, state.threshold, state.contrast,
+    state.step, state.scale, state.sizeWeight, state.markRotation, state.rotation, state.threshold, state.contrast,
     state.detail, state.highlightDetail, state.invert,
     state.paper, state.ink, state.shadowInk, state.midInk, state.highlightInk,
     state.allowTransparency, state.texture, state.transparent,
@@ -1405,6 +1422,12 @@ const setButtonBusy = (button, busy, label = '') => {
   }
 };
 
+const getExportBaseName = () => {
+  const src = state.sources[state.activeIndex];
+  const name = src?.name || 'halftone';
+  return name.replace(/\.[^.]+$/, '');
+};
+
 const downloadBlob = (blob, filename) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1535,7 +1558,7 @@ const exportWebm = async () => {
     stream.getTracks().forEach((track) => track.stop());
 
     if (chunks.length === 0) throw new Error('empty recording');
-    downloadBlob(new Blob(chunks, { type: mimeType }), `半调-${state.shape}.webm`);
+    downloadBlob(new Blob(chunks, { type: mimeType }), `WEBM_dot_${getExportBaseName()}.webm`);
     setExportStatus('WebM 已生成并开始下载。');
     clearExportStatusSoon('WebM 已生成并开始下载。');
   } catch (error) {
@@ -1644,7 +1667,7 @@ const exportGif = async () => {
     gif.render();
     const blob = await finished;
     if (gifAbort) throw new Error('cancelled');
-    downloadBlob(blob, `半调-${state.shape}.gif`);
+    downloadBlob(blob, `GIF_dot_${getExportBaseName()}.gif`);
     setExportStatus('GIF 已生成并开始下载。');
     clearExportStatusSoon('GIF 已生成并开始下载。');
   } catch (error) {
@@ -1833,7 +1856,7 @@ const exportSvg = () => {
 
   const svgContent = svgParts.join('');
   const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
-  downloadBlob(blob, `半调-${state.shape}.svg`);
+  downloadBlob(blob, `SVG_dot_${getExportBaseName()}.svg`);
 
   if (wasPlaying) {
     state.playing = true;
@@ -1864,6 +1887,8 @@ const updateControl = (control) => {
   if (key === 'morph' && state.morph && !prevMorph) {
     state.animationStart = performance.now();
   }
+
+  if (key === 'morph') updatePlayButton();
 
   if (['step', 'rotation', 'threshold', 'contrast', 'detail', 'highlightDetail', 'invert'].includes(key)) invalidatePointSets();
   if (['canvasRes', 'canvasPadding'].includes(key)) {
@@ -2138,7 +2163,7 @@ if (canvas && context) {
 
   downloadPngButton?.addEventListener('click', () => {
     const link = document.createElement('a');
-    link.download = `半调-${state.shape}.png`;
+    link.download = `PNG_dot_${getExportBaseName()}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   });
