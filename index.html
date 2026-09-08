@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0d0f14">
+    <meta name="description" content="一个用于把图片转换为圆点、叉号和方块半调网格的前端实验工具。">
+    <title>半调工厂 | Halftone Factory</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='7' cy='12' r='3' fill='%235eead4'/><circle cx='17' cy='12' r='5' fill='%235eead4' fill-opacity='0.55'/><circle cx='12' cy='5' r='2' fill='%235eead4' fill-opacity='0.8'/></svg>">
+    <link rel="stylesheet" href="factory-main.css">
+  </head>
+  <body>
+    <div class="app-root">
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="7" cy="12" r="3" fill="currentColor"/><circle cx="17" cy="12" r="5" fill="currentColor" opacity="0.6"/><circle cx="12" cy="5" r="2" fill="currentColor" opacity="0.8"/></svg>
+            </div>
+            <div class="brand-meta">
+              <span class="brand-name">半调工厂</span>
+              <span class="brand-en">Halftone Factory</span>
+            </div>
+          </div>
+          <div class="topbar-divider"></div>
+          <label class="btn btn-primary btn-upload">
+            <input type="file" accept="image/*,.gif" multiple data-file-input>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12V3"/><path d="M5.5 5.5L8 3l2.5 2.5"/><path d="M3 13v0.5a0.5 0.5 0 0 0 0.5 0.5h9a0.5 0.5 0 0 0 0.5-0.5V13"/></svg>
+            <span>选择图片</span>
+          </label>
+          <div class="menu-wrap">
+            <button type="button" class="btn btn-ghost btn-menu" data-menu-toggle aria-haspopup="true" aria-expanded="false" title="素材列表">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="13" y2="12"/></svg>
+              <span class="menu-count" data-menu-count>0</span>
+            </button>
+            <div class="menu-popover" data-menu-popover role="menu" hidden>
+              <header class="popover-head">
+                <span>已加载素材</span>
+                <button type="button" class="popover-close" data-menu-close aria-label="关闭">✕</button>
+              </header>
+              <ul class="popover-list" data-menu-list></ul>
+              <footer class="popover-foot" data-menu-foot hidden>
+                <button type="button" class="btn btn-ghost btn-danger btn-sm" data-menu-clear>清空全部</button>
+              </footer>
+            </div>
+          </div>
+        </div>
+
+        <div class="topbar-center">
+          <button type="button" class="btn btn-ghost" data-action="reset" title="还原画布缩放和偏移">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M15 3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0V5.56l-3.97 3.97a.75.75 0 1 1-1.06-1.06l3.97-3.97h-2.69a.75.75 0 0 1-.75-.75m-12 0A.75.75 0 0 1 3.75 3h4.5a.75.75 0 0 1 0 1.5H5.56l3.97 3.97a.75.75 0 0 1-1.06 1.06L4.5 5.56v2.69a.75.75 0 0 1-1.5 0zm11.47 11.78a.75.75 0 1 1 1.06-1.06l3.97 3.97v-2.69a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1 0-1.5h2.69zm-4.94-1.06a.75.75 0 0 1 0 1.06L5.56 19.5h2.69a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 1 1.5 0v2.69l3.97-3.97a.75.75 0 0 1 1.06 0" clip-rule="evenodd"/></svg>
+            <span>还原视图</span>
+          </button>
+          <div class="topbar-divider"></div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="menu-wrap export-menu-wrap">
+            <button type="button" class="btn btn-primary" data-export-toggle aria-haspopup="true" aria-expanded="false">
+              <span>导出图像</span>
+              <svg class="chev-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,10 12,6"/></svg>
+            </button>
+            <div class="menu-popover export-popover" data-export-popover role="menu" hidden>
+              <ul class="popover-list">
+                <li><button type="button" class="menu-item" data-download role="menuitem">PNG 图像</button></li>
+                <li><button type="button" class="menu-item" data-download-svg role="menuitem">SVG 矢量</button></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="app-body">
+        <aside class="control-panel" aria-label="效果参数" data-panel>
+          <div class="panel-tabs" role="tablist">
+            <button type="button" class="panel-tab is-active" role="tab" data-panel-tab="static">静态</button>
+            <button type="button" class="panel-tab" role="tab" data-panel-tab="dynamic">动态（实验）</button>
+          </div>
+          <div class="notice-bar" data-notice>
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625zM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5m0 9a1 1 0 1 0 0-2a1 1 0 0 0 0 2" clip-rule="evenodd"/></svg>
+            <span>动态相关功能仍在实验阶段，功能不完善，并且可能包含性能问题和效果问题。目前仅作为实验性功能。</span>
+          </div>
+          <section class="panel-section" data-tab="static" aria-label="色彩">
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-label">色彩</span>
+                <span class="section-hint">color</span>
+              </div>
+            </header>
+            <div class="panel-body">
+              <div class="panel-row">
+                <span class="row-label">色彩模式</span>
+                <div class="segmented">
+                  <button type="button" class="is-active" data-color-mode="pure" aria-label="纯单色" title="纯单色">纯色</button>
+                  <button type="button" data-color-mode="mono" aria-label="混合单色" title="混合单色">灰度</button>
+                  <button type="button" data-color-mode="source" aria-label="源色" title="源色">原彩</button>
+                  <button type="button" data-color-mode="gradient" aria-label="渐变映射" title="渐变映射">渐变</button>
+                </div>
+              </div>
+              <div class="swatches">
+                <label class="swatch-item">
+                  <span class="swatch-label">前景</span>
+                  <span class="swatch-box">
+                    <input type="color" value="#009cdb" data-control="ink">
+                  </span>
+                </label>
+                <label class="swatch-item">
+                  <span class="swatch-label">背景</span>
+                  <span class="swatch-box">
+                    <input type="color" value="#f7f3ec" data-control="paper">
+                  </span>
+                </label>
+                <label class="swatch-item">
+                  <span class="swatch-label">暗部</span>
+                  <span class="swatch-box">
+                    <input type="color" value="#23322d" data-control="shadowInk">
+                  </span>
+                </label>
+                <label class="swatch-item">
+                  <span class="swatch-label">中间</span>
+                  <span class="swatch-box">
+                    <input type="color" value="#2fb69a" data-control="midInk">
+                  </span>
+                </label>
+                <label class="swatch-item">
+                  <span class="swatch-label">亮部</span>
+                  <span class="swatch-box">
+                    <input type="color" value="#e7e4d8" data-control="highlightInk">
+                  </span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-section" data-tab="static" aria-label="点">
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-label">点</span>
+                <span class="section-hint">dot</span>
+              </div>
+            </header>
+            <div class="panel-body">
+              <div class="panel-row">
+                <span class="row-label">形状</span>
+                <div class="segmented">
+                  <button type="button" class="is-active" data-shape="dot" aria-label="圆点" title="圆点">●</button>
+                  <button type="button" data-shape="cross" aria-label="叉号" title="叉号"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94z"/></svg></button>
+                  <button type="button" data-shape="square" aria-label="方块" title="方块">■</button>
+                  <button type="button" data-shape="slash" aria-label="粗斜线" title="粗斜线"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M4.2 2.8a.75.75 0 0 1 1.06 0l8.48 8.48a.75.75 0 1 1-1.06 1.06L4.2 3.86a.75.75 0 0 1 0-1.06" clip-rule="evenodd"/></svg></button>
+                  <button type="button" data-shape="plus" aria-label="加号" title="加号">+</button>
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>大小</span>
+                  <output data-output="scale">0.78</output>
+                </div>
+                <input type="range" min="0.2" max="2.5" step="0.02" value="0.78" data-control="scale">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>大小权重</span>
+                  <output data-output="sizeWeight">1.00</output>
+                </div>
+                <input type="range" min="0" max="1" step="0.01" value="1" data-control="sizeWeight">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>旋转</span>
+                  <output data-output="markRotation">0°</output>
+                </div>
+                <input type="range" min="0" max="360" step="1" value="0" data-control="markRotation">
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-section" data-tab="static" aria-label="采样参数">
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-label">采样</span>
+                <span class="section-hint">sampling</span>
+              </div>
+            </header>
+            <div class="panel-body">
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>点密度</span>
+                  <output data-output="step">15</output>
+                </div>
+                <input type="range" min="1" max="22" step="1" value="15" data-control="step">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>旋转</span>
+                  <output data-output="rotation">0°</output>
+                </div>
+                <input type="range" min="0" max="360" step="1" value="0" data-control="rotation">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>阈值</span>
+                  <output data-output="threshold">0.18</output>
+                </div>
+                <input type="range" min="0" max="0.82" step="0.01" value="0.18" data-control="threshold">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>对比</span>
+                  <output data-output="contrast">1.18</output>
+                </div>
+                <input type="range" min="0.5" max="2" step="0.02" value="1.18" data-control="contrast">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>暗部</span>
+                  <output data-output="detail">0.50</output>
+                </div>
+                <input type="range" min="0" max="1" step="0.02" value="0.5" data-control="detail">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>亮部</span>
+                  <output data-output="highlightDetail">0.50</output>
+                </div>
+                <input type="range" min="0" max="1" step="0.02" value="0.5" data-control="highlightDetail">
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-section" data-tab="dynamic" aria-label="导入视频">
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-label">导入视频</span>
+                <span class="section-hint">video</span>
+              </div>
+            </header>
+            <div class="panel-body">
+              <label class="btn btn-ghost btn-video-upload">
+                <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" multiple data-file-input>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="9" height="10" rx="1.5"/><path d="M11 6l3-2v8l-3-2z" fill="currentColor" stroke="none"/></svg>
+                <span>选择视频</span>
+              </label>
+            </div>
+          </section>
+
+          <section class="panel-section" data-tab="dynamic" aria-label="轮播">
+            <header class="section-header section-header-with-toggle">
+              <div class="section-header-left">
+                <span class="section-label">轮播</span>
+                <span class="section-hint">morph</span>
+              </div>
+              <label class="toggle toggle-compact">
+                <input type="checkbox" data-control="morph">
+                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              </label>
+            </header>
+            <div class="panel-body">
+              <div class="panel-row">
+                <span class="row-label">转场</span>
+                <div class="segmented segmented-two">
+                  <button type="button" class="is-active" data-transition="dissolve" aria-label="消隐" title="消隐">消隐</button>
+                  <button type="button" data-transition="path" aria-label="重组" title="重组">重组</button>
+                </div>
+              </div>
+              <div class="panel-row">
+                <span class="row-label">路径</span>
+                <div class="segmented segmented-five">
+                  <button type="button" class="is-active" data-path="radial" aria-label="中心路径" title="中心路径">◎</button>
+                  <button type="button" data-path="horizontal" aria-label="横扫路径" title="横扫路径">↔</button>
+                  <button type="button" data-path="vertical" aria-label="竖扫路径" title="竖扫路径">↕</button>
+                  <button type="button" data-path="diagonal" aria-label="斜切路径" title="斜切路径">↗</button>
+                  <button type="button" data-path="random" aria-label="随机路径" title="随机路径">∿</button>
+                </div>
+              </div>
+
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>转场时长</span>
+                  <output data-output="duration">1.70s</output>
+                </div>
+                <input type="range" min="0.6" max="4" step="0.05" value="1.7" data-control="duration">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>空白</span>
+                  <output data-output="blank">0.24s</output>
+                </div>
+                <input type="range" min="0" max="1.5" step="0.03" value="0.24" data-control="blank">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>停留</span>
+                  <output data-output="hold">0.55s</output>
+                </div>
+                <input type="range" min="0" max="2.5" step="0.05" value="0.55" data-control="hold">
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>漂移</span>
+                  <output data-output="drift">0.08</output>
+                </div>
+                <input type="range" min="0" max="0.5" step="0.01" value="0.08" data-control="drift">
+              </div>
+            </div>
+          </section>
+
+          <section class="panel-section" data-tab="dynamic" aria-label="导出">
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-label">导出</span>
+                <span class="section-hint">export</span>
+              </div>
+            </header>
+            <div class="panel-body">
+              <button type="button" class="btn btn-ghost btn-full btn-export" data-download-gif>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 5h6M5 8h4M5 11h3"/></svg>
+                <span class="btn-main">GIF 动画</span>
+                <span class="btn-sub">点击取消</span>
+              </button>
+              <button type="button" class="btn btn-ghost btn-full btn-export" data-download-webm>
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,2 14,8 3,14"/></svg>
+                <span class="btn-main">录制视频</span>
+                <span class="btn-sub">点击取消</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section panel-section-footer" data-tab="static" aria-label="输出选项">
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-label">输出</span>
+                <span class="section-hint">palette</span>
+              </div>
+            </header>
+            <div class="panel-body">
+              <div class="toggles">
+                <label class="toggle">
+                  <input type="checkbox" data-control="transparent">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-label">背景透明</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" data-control="texture">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-label">网格</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" data-control="invert">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-label">反相</span>
+                </label>
+                <label class="toggle">
+                  <input type="checkbox" data-control="allowTransparency">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-label">半透明点</span>
+                </label>
+              </div>
+
+            </div>
+          </section>
+
+          <button type="button" class="btn btn-ghost btn-reset-params" data-reset-params title="恢复所有参数到默认值">
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H3.989a.75.75 0 0 0-.75.75v4.242a.75.75 0 0 0 1.5 0v-2.43l.31.31a7 7 0 0 0 11.712-3.138a.75.75 0 0 0-1.449-.39m1.23-3.723a.75.75 0 0 0 .219-.53V2.929a.75.75 0 0 0-1.5 0V5.36l-.31-.31A7 7 0 0 0 3.239 8.188a.75.75 0 1 0 1.448.389A5.5 5.5 0 0 1 13.89 6.11l.311.31h-2.432a.75.75 0 0 0 0 1.5h4.243a.75.75 0 0 0 .53-.219" clip-rule="evenodd"/></svg>
+            <span>重置参数</span>
+          </button>
+        </aside>
+
+        <main class="canvas-area" aria-label="预览区">
+          <div class="canvas-toolbar">
+            <div class="toolbar-left">
+              <span class="mode-tag">
+                <span class="tag-dot"></span>
+                <span>实时预览</span>
+              </span>
+              <div class="toolbar-controls">
+                <button type="button" class="play-btn playing" data-play aria-label="暂停预览" title="暂停预览">
+                  <svg class="play-icon play-pause" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2.5" width="3.5" height="11" rx="1"/><rect x="9.5" y="2.5" width="3.5" height="11" rx="1"/></svg>
+                  <svg class="play-icon play-play" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><polygon points="3,2.5 13.5,8 3,13.5"/></svg>
+                </button>
+                <label class="toggle toggle-sm">
+                  <input type="checkbox" data-vector-zoom>
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                  <span class="toggle-label">矢量缩放</span>
+                </label>
+                <span class="hint" tabindex="0" role="tooltip" aria-label="矢量缩放说明">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1m0 6.25a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0V8a.75.75 0 0 0-.75-.75m0-3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8"/></svg>
+                  <span class="hint-bubble">开启后放大不会模糊，但对内存与 CPU 压力会显著增大。</span>
+                </span>
+              </div>
+            </div>
+            <div class="toolbar-right">
+              <span class="info-pill"><span data-caption>等待素材</span></span>
+              <span class="info-pill"><span data-size-label>—</span></span>
+              <span class="info-pill"><span data-zoom-label>100%</span></span>
+            </div>
+          </div>
+          <figure class="canvas-wrap">
+            <canvas data-canvas role="img" aria-label="上传图片转换后的点阵半调预览"></canvas>
+          </figure>
+          <footer class="canvas-footer">
+            <span class="footer-text">滚轮缩放 · 拖拽平移 · 双击重置</span>
+          </footer>
+        </main>
+      </div>
+    </div>
+
+    <script src="factory-main.js" defer></script>
+    <script>
+      (function () {
+        function initPanelTabs() {
+          var tabs = document.querySelectorAll('.panel-tab');
+          var sections = document.querySelectorAll('.panel-section');
+          var notice = document.querySelector('[data-notice]');
+          if (!tabs.length) return;
+
+          sections.forEach(function (sec) {
+            if (sec.dataset.tab === 'dynamic') sec.style.display = 'none';
+          });
+          if (notice) notice.style.display = 'none';
+
+          tabs.forEach(function (tab) {
+            tab.addEventListener('click', function () {
+              var target = tab.dataset.panelTab;
+              tabs.forEach(function (t) { t.classList.remove('is-active'); });
+              tab.classList.add('is-active');
+              sections.forEach(function (sec) {
+                var secTab = sec.dataset.tab;
+                if (secTab === target) {
+                  sec.style.display = '';
+                } else if (secTab) {
+                  sec.style.display = 'none';
+                }
+              });
+              if (notice) notice.style.display = target === 'dynamic' ? '' : 'none';
+            });
+          });
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initPanelTabs);
+        } else {
+          initPanelTabs();
+        }
+      })();
+    </script>
+  </body>
+</html>

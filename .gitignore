@@ -1,0 +1,12 @@
+.DS_Store
+/.idea
+node_modules/
+dist/
+coverage/
+*.log
+*.webm
+*.gif
+*.png
+!.github/
+!docs/**/*.png
+!docs/**/*.gif
