@@ -6,7 +6,7 @@
 做项目的时候，发现网上的这类工具全都要付费，于是干脆自己弄一个。
 项目为纯 HTML + CSS + JavaScript。
 
-Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku))
+Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku)
 
 ## 功能：
 
