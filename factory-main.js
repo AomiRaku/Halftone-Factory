@@ -638,10 +638,9 @@ const showConfirm = (message) => new Promise((resolve) => {
   };
   ok.addEventListener('click', () => cleanup(true));
   cancel.addEventListener('click', () => cleanup(false));
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
 });
 
-const APP_VERSION = '1.0.3-90036';
+const APP_VERSION = '1.1.2-90046';
 
 const showAbout = () => {
   const overlay = document.createElement('div');
@@ -675,7 +674,6 @@ const showAbout = () => {
     setTimeout(() => overlay.remove(), 300);
   };
   overlay.querySelector('[data-about-done]').addEventListener('click', close);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
 };
@@ -790,7 +788,6 @@ const showSettings = () => {
     setTimeout(() => overlay.remove(), 300);
   };
   overlay.querySelector('[data-settings-done]').addEventListener('click', close);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
 };
