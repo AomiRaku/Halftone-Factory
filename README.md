@@ -22,11 +22,11 @@ Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku)
 
 ## 开始使用
 
-#### 方法1：直接访问仓库介绍处的链接使用。那是 Github Pages。
+#### 方法 1 ：直接访问 [此处](https://aomiraku.github.io/Halftone-Factory/) 开始。这是该项目的 Github Pages。所有数据都在本地处理。
 
-#### 方法2：下载源码到本地解压，直接用浏览器打开 `index.html` 。
+#### 方法 2 ：下载源码到本地解压，直接用浏览器打开 `index.html` 。
 
-#### 方法3：在本地启动静态服务器：
+#### 方法 3 ：在本地启动静态服务器：
 
 ```bash
 python3 -m http.server 6702
