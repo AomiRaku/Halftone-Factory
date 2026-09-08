@@ -51,5 +51,5 @@ http://127.0.0.1:6702
 
 
 ## 其他
-- 本项目的基本功能基于项目 https://github.com/vibe-lark/halftone-lab 的代码重构和改进。
-- 本项目采用MIT协议. 详见 [LICENSE](LICENSE)。
+- 本项目的基础功能来自项目 https://github.com/vibe-lark/halftone-lab 的代码进行重构和改进。
+- 本项目采用 [MIT协议](LICENSE) 。
