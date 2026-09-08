@@ -53,7 +53,7 @@ const state = {
   colorMode: 'pure',
   transition: 'dissolve',
   pathStyle: 'radial',
-  step: 8,
+  step: 11,
   scale: 1,
   sizeWeight: 1,
   markRotation: 0,
@@ -66,7 +66,7 @@ const state = {
   blank: 0.24,
   hold: 0.55,
   drift: 0.08,
-  ink: '#009cdb',
+  ink: '#7b5719',
   paper: '#f7f3ec',
   shadowInk: '#23322d',
   midInk: '#2fb69a',
@@ -93,7 +93,8 @@ const state = {
   vectorZoom: false,
   canvasBase: 'width',
   canvasRes: 1000,
-  canvasPadding: false
+  canvasPadding: false,
+  experimental: false
 };
 
 const CANVAS_PADDING = 50;
@@ -142,7 +143,7 @@ const updateSwatchAvailability = () => {
     const key = input.dataset.control;
     let allowed;
     if (state.colorMode === 'gradient') {
-      allowed = true;
+      allowed = key !== 'ink';
     } else if (state.colorMode === 'source') {
       allowed = key === 'paper';
     } else {
@@ -253,26 +254,39 @@ const paintBackgroundTexture = (width, height) => {
 
   const grid = Math.max(1, state.step);
   const mid = hexToRgb(state.midInk);
+  const cx = width * 0.5;
+  const cy = height * 0.5;
+  const diag = Math.hypot(width, height);
+  const half = diag * 0.5;
+  const startX = Math.floor((cx - half) / grid) * grid + grid * 0.5;
+  const endX = cx + half;
+  const startY = Math.floor((cy - half) / grid) * grid + grid * 0.5;
+  const endY = cy + half;
   context.save();
-  context.lineWidth = 0.5;
-  context.strokeStyle = `rgba(${mid.r}, ${mid.g}, ${mid.b}, 0.055)`;
+  if (state.rotation) {
+    context.translate(cx, cy);
+    context.rotate(state.rotation * Math.PI / 180);
+    context.translate(-cx, -cy);
+  }
+  context.lineWidth = 1;
+  context.strokeStyle = `rgba(${mid.r}, ${mid.g}, ${mid.b}, 0.15)`;
   context.beginPath();
 
-  for (let x = grid * 0.5; x < width; x += grid) {
-    context.moveTo(x, 0);
-    context.lineTo(x, height);
+  for (let x = startX; x < endX; x += grid) {
+    context.moveTo(x, cy - half);
+    context.lineTo(x, cy + half);
   }
 
-  for (let y = grid * 0.5; y < height; y += grid) {
-    context.moveTo(0, y);
-    context.lineTo(width, y);
+  for (let y = startY; y < endY; y += grid) {
+    context.moveTo(cx - half, y);
+    context.lineTo(cx + half, y);
   }
 
   context.stroke();
-  context.fillStyle = `rgba(${mid.r}, ${mid.g}, ${mid.b}, 0.035)`;
+  context.fillStyle = `rgba(${mid.r}, ${mid.g}, ${mid.b}, 0.1)`;
 
-  for (let y = grid * 0.5; y < height; y += grid) {
-    for (let x = grid * 0.5; x < width; x += grid) {
+  for (let y = startY; y < endY; y += grid) {
+    for (let x = startX; x < endX; x += grid) {
       context.fillRect(Math.round(x), Math.round(y), 1, 1);
     }
   }
@@ -471,7 +485,7 @@ const renderMenu = () => {
     name.textContent = item.name || `素材 ${idx + 1}`;
     const sub = document.createElement('span');
     sub.className = 'popover-sub';
-    const kindLabel = item.kind === 'video' ? '视频' : item.kind === 'gif' ? 'GIF' : '图片';
+    const kindLabel = item.kind === 'video' ? '视频' : item.kind === 'gif' ? 'GIF' : '图像';
     const kindTag = document.createElement('span');
     kindTag.className = `popover-kind popover-kind--${item.kind === 'video' ? 'video' : item.kind === 'gif' ? 'gif' : 'image'}`;
     kindTag.textContent = kindLabel;
@@ -634,9 +648,6 @@ const showAbout = () => {
   overlay.className = 'confirm-overlay is-about';
   overlay.innerHTML = `
     <div class="confirm-dialog about-dialog" role="dialog" aria-modal="true">
-      <button type="button" class="about-close" data-about-close aria-label="关闭">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
-      </button>
       <div class="about-header">
         <div class="about-logo" aria-hidden="true">
           <svg width="56" height="56" viewBox="0 0 200 200" fill="currentColor"><g><circle cx="15.85" cy="23.69" r="13.07"/><circle cx="15.85" cy="50.29" r="11.9"/><circle cx="15.85" cy="76.89" r="10.74"/><circle cx="15.85" cy="103.49" r="9.58"/><circle cx="15.85" cy="130.09" r="8.41"/><circle cx="15.85" cy="156.69" r="7.25"/><circle cx="15.85" cy="183.29" r="6.09"/></g><g><circle cx="49.51" cy="23.69" r="13.07"/><circle cx="49.51" cy="50.29" r="11.9"/><circle cx="49.51" cy="76.89" r="10.74"/><circle cx="49.51" cy="103.49" r="9.58"/><circle cx="49.51" cy="130.09" r="8.41"/><circle cx="49.51" cy="156.69" r="7.25"/><circle cx="49.51" cy="183.29" r="6.09"/></g><g><circle cx="83.17" cy="23.69" r="13.07"/><circle cx="83.17" cy="50.29" r="11.9"/><circle cx="83.17" cy="76.89" r="10.74"/><circle cx="83.17" cy="103.49" r="9.58"/><circle cx="83.17" cy="130.09" r="8.41"/><circle cx="83.17" cy="156.69" r="7.25"/><circle cx="83.17" cy="183.29" r="6.09"/></g><g><circle cx="116.83" cy="23.69" r="13.07"/><circle cx="116.83" cy="50.29" r="11.9"/><circle cx="116.83" cy="76.89" r="10.74"/><circle cx="116.83" cy="103.49" r="9.58"/><circle cx="116.83" cy="130.09" r="8.41"/><circle cx="116.83" cy="156.69" r="7.25"/><circle cx="116.83" cy="183.29" r="6.09"/></g><g><circle cx="150.49" cy="23.69" r="13.07"/><circle cx="150.49" cy="50.29" r="11.9"/><circle cx="150.49" cy="76.89" r="10.74"/><circle cx="150.49" cy="103.49" r="9.58"/><circle cx="150.49" cy="130.09" r="8.41"/><circle cx="150.49" cy="156.69" r="7.25"/><circle cx="150.49" cy="183.29" r="6.09"/></g><g><circle cx="184.15" cy="23.69" r="13.07"/><circle cx="184.15" cy="50.29" r="11.9"/><circle cx="184.15" cy="76.89" r="10.74"/><circle cx="184.15" cy="103.49" r="9.58"/><circle cx="184.15" cy="130.09" r="8.41"/><circle cx="184.15" cy="156.69" r="7.25"/><circle cx="184.15" cy="183.29" r="6.09"/></g></svg>
@@ -649,7 +660,7 @@ const showAbout = () => {
       </div>
       <div class="about-credits">
         <div>本开源项目采用 <a href="https://github.com/AomiRaku/Halftone-Factory/blob/main/LICENSE" target="_blank" rel="noopener">MIT 协议</a></div>
-        <div>Made with ♥ By 羽梦千景</div>
+        <div>Made with ♥ By 羽梦千景 Raku Inkyetta</div>
       </div>
       <div class="confirm-actions">
         <a href="https://github.com/AomiRaku/Halftone-Factory" target="_blank" rel="noopener" class="btn btn-link">在 GitHub 查看</a>
@@ -663,8 +674,122 @@ const showAbout = () => {
     overlay.classList.remove('is-visible');
     setTimeout(() => overlay.remove(), 300);
   };
-  overlay.querySelector('[data-about-close]').addEventListener('click', close);
   overlay.querySelector('[data-about-done]').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+};
+
+const resetStaticParams = () => {
+  state.shape = 'dot';
+  state.colorMode = 'pure';
+  state.step = 11;
+  state.scale = 1;
+  state.sizeWeight = 1;
+  state.markRotation = 0;
+  state.rotation = 0;
+  state.threshold = 0;
+  state.contrast = 1.2;
+  state.detail = 0.5;
+  state.highlightDetail = 0.5;
+  state.ink = '#7b5719';
+  state.paper = '#f7f3ec';
+  state.shadowInk = '#23322d';
+  state.midInk = '#2fb69a';
+  state.highlightInk = '#e7e4d8';
+  state.transparent = false;
+  state.texture = false;
+  state.invert = false;
+  state.allowTransparency = false;
+  state.canvasBase = 'width';
+  state.canvasRes = 1000;
+  state.canvasPadding = false;
+  window._syncControlsFromState?.();
+  invalidatePointSets();
+  window._scheduleRender?.();
+};
+
+const resetDynamicParams = () => {
+  state.transition = 'dissolve';
+  state.pathStyle = 'radial';
+  state.duration = 1.7;
+  state.blank = 0.24;
+  state.hold = 0.55;
+  state.drift = 0.08;
+  state.morph = false;
+  state.playing = false;
+  window._syncControlsFromState?.();
+  updatePlayButton();
+  window._scheduleRender?.();
+};
+
+let _panelTabs = null;
+let _panelSections = null;
+let _panelNotice = null;
+let _panelTabStatic = null;
+let _panelTabDynamic = null;
+
+const initPanelTabRefs = () => {
+  _panelTabs = document.querySelectorAll('.panel-tab');
+  _panelSections = document.querySelectorAll('.panel-section');
+  _panelNotice = document.querySelector('[data-notice]');
+  _panelTabStatic = document.querySelector('.panel-tab[data-panel-tab="static"]');
+  _panelTabDynamic = document.querySelector('.panel-tab[data-panel-tab="dynamic"]');
+};
+
+const switchPanelTab = (target) => {
+  if (!_panelTabs) initPanelTabRefs();
+  _panelTabs.forEach((t) => t.classList.remove('is-active'));
+  const active = document.querySelector(`.panel-tab[data-panel-tab="${target}"]`);
+  if (active) active.classList.add('is-active');
+  _panelSections.forEach((sec) => {
+    if (!sec.dataset.tab) return;
+    sec.style.display = sec.dataset.tab === target ? '' : 'none';
+  });
+  if (_panelNotice) _panelNotice.style.display = target === 'dynamic' ? '' : 'none';
+};
+
+const setExperimentalEnabled = (enabled) => {
+  state.experimental = enabled;
+  const tabsBar = document.querySelector('.panel-tabs');
+  if (tabsBar) tabsBar.style.display = enabled ? '' : 'none';
+  if (!enabled) {
+    switchPanelTab('static');
+    resetDynamicParams();
+  }
+};
+
+const showSettings = () => {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay is-about';
+  overlay.innerHTML = `
+    <div class="confirm-dialog about-dialog settings-dialog" role="dialog" aria-modal="true">
+      <div class="settings-title">设置</div>
+      <div class="confirm-body">
+        <label class="toggle toggle-sm">
+          <input type="checkbox" data-setting-experimental>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">启用实验性功能</span>
+        </label>
+        <div class="setting-desc">实验性功能为开发未完善的测试功能，可能存在大bug、卡顿和性能问题等，仅供体验。</div>
+      </div>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-primary" data-settings-done>关闭</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('is-visible'));
+  const toggle = overlay.querySelector('[data-setting-experimental]');
+  toggle.checked = state.experimental;
+  toggle.addEventListener('change', () => {
+    setExperimentalEnabled(toggle.checked);
+  });
+  const close = () => {
+    overlay.classList.remove('is-visible');
+    setTimeout(() => overlay.remove(), 300);
+  };
+  overlay.querySelector('[data-settings-done]').addEventListener('click', close);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
   const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
   document.addEventListener('keydown', onKey);
@@ -1828,21 +1953,30 @@ const exportSvg = () => {
   if (state.texture && !state.transparent) {
     const grid = Math.max(1, state.step);
     const mid = hexToRgb(state.midInk);
-    const stroke = `rgba(${mid.r},${mid.g},${mid.b},0.055)`;
-    const dotFill = `rgba(${mid.r},${mid.g},${mid.b},0.035)`;
+    const stroke = `rgba(${mid.r},${mid.g},${mid.b},0.15)`;
+    const dotFill = `rgba(${mid.r},${mid.g},${mid.b},0.1)`;
+    const cx = width * 0.5;
+    const cy = height * 0.5;
+    const diag = Math.hypot(width, height);
+    const half = diag * 0.5;
+    const startX = Math.floor((cx - half) / grid) * grid + grid * 0.5;
+    const endX = cx + half;
+    const startY = Math.floor((cy - half) / grid) * grid + grid * 0.5;
+    const endY = cy + half;
+    const rotAttr = state.rotation ? ` transform="rotate(${state.rotation.toFixed(2)} ${cx.toFixed(2)} ${cy.toFixed(2)})"` : '';
 
-    svgParts.push(`<g stroke="${stroke}" stroke-width="0.5" fill="none">`);
-    for (let x = grid * 0.5; x < width; x += grid) {
-      svgParts.push(`<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${height}"/>`);
+    svgParts.push(`<g stroke="${stroke}" stroke-width="1" fill="none"${rotAttr}>`);
+    for (let x = startX; x < endX; x += grid) {
+      svgParts.push(`<line x1="${x.toFixed(1)}" y1="${(cy - half).toFixed(1)}" x2="${x.toFixed(1)}" y2="${(cy + half).toFixed(1)}"/>`);
     }
-    for (let y = grid * 0.5; y < height; y += grid) {
-      svgParts.push(`<line x1="0" y1="${y.toFixed(1)}" x2="${width}" y2="${y.toFixed(1)}"/>`);
+    for (let y = startY; y < endY; y += grid) {
+      svgParts.push(`<line x1="${(cx - half).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(cx + half).toFixed(1)}" y2="${y.toFixed(1)}"/>`);
     }
     svgParts.push('</g>');
 
-    svgParts.push(`<g fill="${dotFill}">`);
-    for (let y = grid * 0.5; y < height; y += grid) {
-      for (let x = grid * 0.5; x < width; x += grid) {
+    svgParts.push(`<g fill="${dotFill}"${rotAttr}>`);
+    for (let y = startY; y < endY; y += grid) {
+      for (let x = startX; x < endX; x += grid) {
         svgParts.push(`<rect x="${Math.round(x)}" y="${Math.round(y)}" width="1" height="1"/>`);
       }
     }
@@ -1907,6 +2041,8 @@ if (canvas && context) {
       if (state.playing) requestRenderLoop();
     });
   };
+
+  window._scheduleRender = scheduleRender;
 
   updateOutputs();
   updatePlayButton();
@@ -2114,6 +2250,10 @@ if (canvas && context) {
     closeUtilMenu();
     showAbout();
   });
+  document.querySelector('[data-settings]')?.addEventListener('click', () => {
+    closeUtilMenu();
+    showSettings();
+  });
 
   document.addEventListener('click', (e) => {
     if (menuPopover && !menuPopover.hasAttribute('hidden') && !menuPopover.contains(e.target) && !menuToggle?.contains(e.target)) {
@@ -2199,44 +2339,15 @@ if (canvas && context) {
     updateSwatchAvailability();
   };
 
+  window._syncControlsFromState = syncControlsFromState;
+
   document.querySelector('[data-reset-params]')?.addEventListener('click', async () => {
-    const ok = await showConfirm('确定要重置所有参数吗？素材不会被清空。');
+    const activeTab = document.querySelector('.panel-tab.is-active')?.dataset.panelTab || 'static';
+    const label = activeTab === 'dynamic' ? '动态' : '静态';
+    const ok = await showConfirm(`确定要重置${label}页参数吗？素材不会被清空。`);
     if (!ok) return;
-    state.shape = 'dot';
-    state.colorMode = 'pure';
-    state.transition = 'dissolve';
-    state.pathStyle = 'radial';
-    state.step = 8;
-    state.scale = 1;
-    state.sizeWeight = 1;
-    state.markRotation = 0;
-    state.rotation = 0;
-    state.threshold = 0;
-    state.contrast = 1.2;
-    state.detail = 0.5;
-    state.highlightDetail = 0.5;
-    state.duration = 1.7;
-    state.blank = 0.24;
-    state.hold = 0.55;
-    state.drift = 0.08;
-    state.ink = '#009cdb';
-    state.paper = '#f7f3ec';
-    state.shadowInk = '#23322d';
-    state.midInk = '#2fb69a';
-    state.highlightInk = '#e7e4d8';
-    state.transparent = false;
-    state.texture = false;
-    state.invert = false;
-    state.allowTransparency = false;
-    state.morph = false;
-    state.playing = false;
-    state.canvasBase = 'width';
-    state.canvasRes = 1000;
-    state.canvasPadding = false;
-    syncControlsFromState();
-    updatePlayButton();
-    invalidatePointSets();
-    scheduleRender();
+    if (activeTab === 'dynamic') resetDynamicParams();
+    else resetStaticParams();
   });
 
   window.addEventListener('resize', () => {
@@ -2244,6 +2355,12 @@ if (canvas && context) {
     invalidatePointSets();
     window.requestAnimationFrame(render);
   }, { passive: true });
+
+  window.hfSwitchPanelTab = switchPanelTab;
+  if (!state.experimental) {
+    const tabsBar = document.querySelector('.panel-tabs');
+    if (tabsBar) tabsBar.style.display = 'none';
+  }
 
   loadDemoSources();
 }
