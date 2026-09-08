@@ -66,7 +66,7 @@ const state = {
   blank: 0.24,
   hold: 0.55,
   drift: 0.08,
-  ink: '#7b5719',
+  ink: '#7c4c09',
   paper: '#f7f3ec',
   shadowInk: '#23322d',
   midInk: '#2fb69a',
@@ -641,7 +641,7 @@ const showConfirm = (message) => new Promise((resolve) => {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
 });
 
-const APP_VERSION = '1.0.2-82052';
+const APP_VERSION = '1.0.3-90036';
 
 const showAbout = () => {
   const overlay = document.createElement('div');
@@ -692,7 +692,7 @@ const resetStaticParams = () => {
   state.contrast = 1.2;
   state.detail = 0.5;
   state.highlightDetail = 0.5;
-  state.ink = '#7b5719';
+  state.ink = '#7c4c09';
   state.paper = '#f7f3ec';
   state.shadowInk = '#23322d';
   state.midInk = '#2fb69a';
