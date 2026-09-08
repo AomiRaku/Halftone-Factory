@@ -14,14 +14,22 @@ const menuPopover = document.querySelector('[data-menu-popover]');
 const menuList = document.querySelector('[data-menu-list]');
 const menuCount = document.querySelector('[data-menu-count]');
 const menuFoot = document.querySelector('[data-menu-foot]');
-const resetButton = document.querySelector('[data-action="reset"]');
 const exportToggle = document.querySelector('[data-export-toggle]');
 const exportPopover = document.querySelector('[data-export-popover]');
+const utilMenuToggle = document.querySelector('[data-util-menu-toggle]');
+const utilMenuPopover = document.querySelector('[data-util-menu-popover]');
 const shapeButtons = Array.from(document.querySelectorAll('[data-shape]'));
 const colorModeButtons = Array.from(document.querySelectorAll('[data-color-mode]'));
 const transitionButtons = Array.from(document.querySelectorAll('[data-transition]'));
 const pathButtons = Array.from(document.querySelectorAll('[data-path]'));
 const controls = Array.from(document.querySelectorAll('[data-control]'));
+document.querySelectorAll('input[type="range"]').forEach((input) => {
+  const min = +input.min || 0;
+  const max = +input.max || 100;
+  const def = input.hasAttribute('value') ? +input.getAttribute('value') : (min + max) / 2;
+  const pct = (def - min) / (max - min) * 100;
+  input.style.setProperty('--tick-pct', pct.toFixed(2) + '%');
+});
 const outputs = {
   step: document.querySelector('[data-output="step"]'),
   scale: document.querySelector('[data-output="scale"]'),
@@ -293,7 +301,7 @@ const clearObjectUrls = () => {
 };
 
 const DEMO_SOURCES = [
-  { name: '蓝色大肥鱼.png', src: 'assets/demo/DS.png' }
+  { name: '蓝色大肥鱼.webp', src: 'assets/demo/DS.webp' }
 ];
 
 const loadDemoImage = ({ name, src }) => new Promise((resolve, reject) => {
@@ -418,8 +426,17 @@ const renderMenu = () => {
     const sub = document.createElement('span');
     sub.className = 'popover-sub';
     const kindLabel = item.kind === 'video' ? '视频' : item.kind === 'gif' ? 'GIF' : '图片';
+    const kindTag = document.createElement('span');
+    kindTag.className = `popover-kind popover-kind--${item.kind === 'video' ? 'video' : item.kind === 'gif' ? 'gif' : 'image'}`;
+    kindTag.textContent = kindLabel;
+    sub.appendChild(kindTag);
     const dims = item.source?.naturalWidth ? `${item.source.naturalWidth}×${item.source.naturalHeight}` : '';
-    sub.textContent = dims ? `${kindLabel} · ${dims}` : kindLabel;
+    if (dims) {
+      const dimSpan = document.createElement('span');
+      dimSpan.className = 'popover-dims';
+      dimSpan.textContent = dims;
+      sub.appendChild(dimSpan);
+    }
     meta.append(name, sub);
 
     const handle = document.createElement('button');
@@ -563,6 +580,44 @@ const showConfirm = (message) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
   overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
 });
+
+const APP_VERSION = '1.0.1-81741';
+
+const showAbout = () => {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay is-about';
+  overlay.innerHTML = `
+    <div class="confirm-dialog about-dialog" role="dialog" aria-modal="true">
+      <button type="button" class="about-close" data-about-close aria-label="关闭">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+      </button>
+      <div class="about-header">
+        <div class="about-logo" aria-hidden="true">
+          <svg width="56" height="56" viewBox="0 0 200 200" fill="currentColor"><g><circle cx="15.85" cy="23.69" r="13.07"/><circle cx="15.85" cy="50.29" r="11.9"/><circle cx="15.85" cy="76.89" r="10.74"/><circle cx="15.85" cy="103.49" r="9.58"/><circle cx="15.85" cy="130.09" r="8.41"/><circle cx="15.85" cy="156.69" r="7.25"/><circle cx="15.85" cy="183.29" r="6.09"/></g><g><circle cx="49.51" cy="23.69" r="13.07"/><circle cx="49.51" cy="50.29" r="11.9"/><circle cx="49.51" cy="76.89" r="10.74"/><circle cx="49.51" cy="103.49" r="9.58"/><circle cx="49.51" cy="130.09" r="8.41"/><circle cx="49.51" cy="156.69" r="7.25"/><circle cx="49.51" cy="183.29" r="6.09"/></g><g><circle cx="83.17" cy="23.69" r="13.07"/><circle cx="83.17" cy="50.29" r="11.9"/><circle cx="83.17" cy="76.89" r="10.74"/><circle cx="83.17" cy="103.49" r="9.58"/><circle cx="83.17" cy="130.09" r="8.41"/><circle cx="83.17" cy="156.69" r="7.25"/><circle cx="83.17" cy="183.29" r="6.09"/></g><g><circle cx="116.83" cy="23.69" r="13.07"/><circle cx="116.83" cy="50.29" r="11.9"/><circle cx="116.83" cy="76.89" r="10.74"/><circle cx="116.83" cy="103.49" r="9.58"/><circle cx="116.83" cy="130.09" r="8.41"/><circle cx="116.83" cy="156.69" r="7.25"/><circle cx="116.83" cy="183.29" r="6.09"/></g><g><circle cx="150.49" cy="23.69" r="13.07"/><circle cx="150.49" cy="50.29" r="11.9"/><circle cx="150.49" cy="76.89" r="10.74"/><circle cx="150.49" cy="103.49" r="9.58"/><circle cx="150.49" cy="130.09" r="8.41"/><circle cx="150.49" cy="156.69" r="7.25"/><circle cx="150.49" cy="183.29" r="6.09"/></g><g><circle cx="184.15" cy="23.69" r="13.07"/><circle cx="184.15" cy="50.29" r="11.9"/><circle cx="184.15" cy="76.89" r="10.74"/><circle cx="184.15" cy="103.49" r="9.58"/><circle cx="184.15" cy="130.09" r="8.41"/><circle cx="184.15" cy="156.69" r="7.25"/><circle cx="184.15" cy="183.29" r="6.09"/></g></svg>
+        </div>
+        <div class="about-text">
+          <div class="about-name">半调工厂</div>
+          <div class="about-en">Halftone Factory</div>
+          <div class="about-version">版本：${APP_VERSION}</div>
+        </div>
+      </div>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-primary" data-about-done>完成</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('is-visible'));
+  const close = () => {
+    overlay.classList.remove('is-visible');
+    setTimeout(() => overlay.remove(), 300);
+  };
+  overlay.querySelector('[data-about-close]').addEventListener('click', close);
+  overlay.querySelector('[data-about-done]').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  const onKey = (e) => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+  document.addEventListener('keydown', onKey);
+};
 
 const clearCanvas = () => {
   if (!canvas || !context) return;
@@ -1856,6 +1911,8 @@ if (canvas && context) {
 
   menuToggle?.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (exportPopover && !exportPopover.hasAttribute('hidden')) closeExportMenu();
+    if (utilMenuPopover && !utilMenuPopover.hasAttribute('hidden')) closeUtilMenu();
     toggleMenu();
   });
   document.querySelector('[data-menu-close]')?.addEventListener('click', closeMenu);
@@ -1904,23 +1961,49 @@ if (canvas && context) {
     if (exportPopover.hasAttribute('hidden')) openExportMenu();
     else closeExportMenu();
   };
+  exportToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (menuPopover && !menuPopover.hasAttribute('hidden')) closeMenu();
+    if (utilMenuPopover && !utilMenuPopover.hasAttribute('hidden')) closeUtilMenu();
+    toggleExportMenu();
+  });
 
-  let exportHoverTimer = null;
-  const handleExportHover = (enter) => {
-    if (!exportToggle || !exportPopover) return;
-    clearTimeout(exportHoverTimer);
-    if (enter) {
-      if (exportPopover.hasAttribute('hidden')) {
-        exportHoverTimer = setTimeout(openExportMenu, 120);
-      }
-    } else {
-      exportHoverTimer = setTimeout(closeExportMenu, 160);
-    }
+  const openUtilMenu = () => {
+    if (!utilMenuPopover || !utilMenuToggle) return;
+    utilMenuPopover.removeAttribute('hidden');
+    utilMenuPopover.classList.remove('is-closing');
+    requestAnimationFrame(() => utilMenuPopover.classList.add('is-open'));
+    utilMenuToggle.setAttribute('aria-expanded', 'true');
   };
-  exportToggle?.addEventListener('mouseenter', () => handleExportHover(true));
-  exportToggle?.addEventListener('mouseleave', () => handleExportHover(false));
-  exportPopover?.addEventListener('mouseenter', () => clearTimeout(exportHoverTimer));
-  exportPopover?.addEventListener('mouseleave', () => handleExportHover(false));
+  const closeUtilMenu = () => {
+    if (!utilMenuPopover || !utilMenuToggle) return;
+    utilMenuPopover.classList.remove('is-open');
+    utilMenuPopover.classList.add('is-closing');
+    const onEnd = () => {
+      utilMenuPopover.removeEventListener('transitionend', onEnd);
+      if (!utilMenuPopover.classList.contains('is-open')) {
+        utilMenuPopover.setAttribute('hidden', '');
+        utilMenuPopover.classList.remove('is-closing');
+      }
+    };
+    utilMenuPopover.addEventListener('transitionend', onEnd);
+    utilMenuToggle.setAttribute('aria-expanded', 'false');
+  };
+  const toggleUtilMenu = () => {
+    if (!utilMenuPopover) return;
+    if (utilMenuPopover.hasAttribute('hidden')) openUtilMenu();
+    else closeUtilMenu();
+  };
+  utilMenuToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (menuPopover && !menuPopover.hasAttribute('hidden')) closeMenu();
+    if (exportPopover && !exportPopover.hasAttribute('hidden')) closeExportMenu();
+    toggleUtilMenu();
+  });
+  document.querySelector('[data-about]')?.addEventListener('click', () => {
+    closeUtilMenu();
+    showAbout();
+  });
 
   document.addEventListener('click', (e) => {
     if (menuPopover && !menuPopover.hasAttribute('hidden') && !menuPopover.contains(e.target) && !menuToggle?.contains(e.target)) {
@@ -1929,11 +2012,15 @@ if (canvas && context) {
     if (exportPopover && !exportPopover.hasAttribute('hidden') && !exportPopover.contains(e.target) && !exportToggle?.contains(e.target)) {
       closeExportMenu();
     }
+    if (utilMenuPopover && !utilMenuPopover.hasAttribute('hidden') && !utilMenuPopover.contains(e.target) && !utilMenuToggle?.contains(e.target)) {
+      closeUtilMenu();
+    }
   });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (menuPopover && !menuPopover.hasAttribute('hidden')) closeMenu();
       if (exportPopover && !exportPopover.hasAttribute('hidden')) closeExportMenu();
+      if (utilMenuPopover && !utilMenuPopover.hasAttribute('hidden')) closeUtilMenu();
     }
   });
 
@@ -1983,11 +2070,6 @@ if (canvas && context) {
     exportSvg();
   });
 
-  resetButton?.addEventListener('click', () => {
-    resetView();
-    invalidatePointSets();
-    scheduleRender();
-  });
 
   const syncControlsFromState = () => {
     controls.forEach((control) => {

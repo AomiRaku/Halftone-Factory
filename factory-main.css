@@ -100,7 +100,7 @@ button:focus-visible, input:focus-visible {
   position: absolute;
   inset: 0;
   opacity: 0;
-  cursor: pointer;
+  pointer-events: none;
 }
 
 .btn-video-upload {
@@ -124,10 +124,8 @@ button:focus-visible, input:focus-visible {
 }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md);
-  background: var(--accent-dim);
+  width: 32px;
+  height: 32px;
   color: var(--accent);
   display: grid;
   place-items: center;
@@ -279,28 +277,46 @@ button:focus-visible, input:focus-visible {
 }
 
 .popover-sub {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.popover-kind {
+  display: inline-block;
   font-size: 10px;
-  color: var(--text-4);
-  margin-top: 1px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+.popover-kind--image { background: rgba(52, 211, 153, 0.15); color: #34d399; }
+.popover-kind--gif   { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+.popover-kind--video { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+
+.popover-dims {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 
 .popover-delete-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 5px;
-  color: var(--text-4);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--text-3);
   display: grid;
   place-items: center;
   flex-shrink: 0;
   cursor: pointer;
-  border: 0;
-  background: transparent;
+  border: 1px solid transparent;
+  background: var(--bg-3);
   padding: 0;
-  opacity: 0.7;
-  transition: opacity 120ms var(--ease), color 120ms var(--ease), background 120ms var(--ease);
+  transition: color 120ms var(--ease), background 120ms var(--ease), border-color 120ms var(--ease);
 }
-.popover-delete-btn:hover { opacity: 1; color: #f87171; background: rgba(248, 113, 113, 0.12); }
+.popover-delete-btn:hover { color: #f87171; background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.3); }
 .popover-delete-btn svg { pointer-events: none; }
 
 .popover-item.is-dragging { opacity: 0.45; }
@@ -316,7 +332,15 @@ button:focus-visible, input:focus-visible {
 .export-menu-wrap .export-popover {
   right: 0;
   left: auto;
-  min-width: 200px;
+  min-width: 130px;
+  top: calc(100% + 6px);
+  transform-origin: top right;
+}
+
+.menu-wrap.is-right .menu-popover {
+  right: 0;
+  left: auto;
+  min-width: 96px;
   top: calc(100% + 6px);
   transform-origin: top right;
 }
@@ -430,6 +454,66 @@ button:focus-visible, input:focus-visible {
   gap: 8px;
 }
 
+.about-dialog {
+  position: relative;
+  padding: 24px 24px 18px;
+}
+.about-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-4);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: color 120ms var(--ease), background 120ms var(--ease);
+}
+.about-close:hover { color: var(--text-1); background: var(--bg-3); }
+.about-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.about-logo {
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+.about-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.about-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+.about-en {
+  font-size: 11px;
+  color: var(--text-4);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+.about-version {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.about-dialog .confirm-actions {
+  margin-top: 18px;
+}
+
 /* Buttons */
 .btn {
   position: relative;
@@ -442,6 +526,7 @@ button:focus-visible, input:focus-visible {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
   transition: background 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
 }
 
@@ -895,7 +980,17 @@ html.panel-collapsed .control-panel {
   padding: 0;
   -webkit-appearance: none;
   appearance: none;
-  background: transparent;
+  background-color: transparent;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 25%,
+    var(--bg-4) 25%,
+    var(--bg-4) 75%,
+    transparent 75%
+  );
+  background-size: 2px 100%;
+  background-position: var(--tick-pct) 0;
+  background-repeat: no-repeat;
   cursor: pointer;
 }
 
