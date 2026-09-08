@@ -65,7 +65,7 @@ const state = {
   duration: 1.7,
   blank: 0.24,
   hold: 0.55,
-  drift: 0.08,
+  drift: 0,
   ink: '#009cdb',
   paper: '#f7f3ec',
   shadowInk: '#23322d',
@@ -1124,13 +1124,18 @@ const render = () => {
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.clearRect(0, 0, width, height);
 
-  const isAnimated = state.morph && state.sources.length > 1
+  const isAnimated = state.playing && (
+    (state.morph && state.sources.length > 1)
     || state.drift > 0.001
-    || hasDynamicSource();
+    || hasDynamicSource()
+  );
   const sig = buildRenderSignature(width, height, ratio);
 
   if (!isAnimated && renderCache.signature === sig) {
-    context.drawImage(renderCache.canvas, 0, 0, width, height);
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, deviceWidth, deviceHeight);
+    context.drawImage(renderCache.canvas, 0, 0, deviceWidth, deviceHeight, 0, 0, deviceWidth, deviceHeight);
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
     updateOutputs();
     if (caption) {
       const fromName = state.sources[state.activeIndex]?.name || '素材';
@@ -1168,19 +1173,18 @@ const render = () => {
   context.globalAlpha = 1;
 
   if (!isAnimated) {
-    if (!renderCache.canvas || renderCache.width !== width || renderCache.height !== height || renderCache.ratio !== ratio) {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    if (!renderCache.canvas || renderCache.canvas.width !== deviceWidth || renderCache.canvas.height !== deviceHeight) {
       renderCache.canvas = document.createElement('canvas');
       renderCache.canvas.width = deviceWidth;
       renderCache.canvas.height = deviceHeight;
       renderCache.ctx = renderCache.canvas.getContext('2d');
-      renderCache.width = width;
-      renderCache.height = height;
-      renderCache.ratio = ratio;
     }
-    renderCache.ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    renderCache.ctx.clearRect(0, 0, width, height);
-    renderCache.ctx.drawImage(canvas, 0, 0, width, height, 0, 0, width, height);
+    renderCache.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    renderCache.ctx.clearRect(0, 0, deviceWidth, deviceHeight);
+    renderCache.ctx.drawImage(canvas, 0, 0, deviceWidth, deviceHeight, 0, 0, deviceWidth, deviceHeight);
     renderCache.signature = sig;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 
   updateOutputs();
@@ -2175,7 +2179,7 @@ if (canvas && context) {
     state.duration = 1.7;
     state.blank = 0.24;
     state.hold = 0.55;
-    state.drift = 0.08;
+    state.drift = 0;
     state.ink = '#009cdb';
     state.paper = '#f7f3ec';
     state.shadowInk = '#23322d';
