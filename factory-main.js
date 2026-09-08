@@ -1865,43 +1865,28 @@ if (canvas && context) {
     });
   });
 
-  shapeButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      state.shape = button.dataset.shape || 'dot';
-      shapeButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-      scheduleRender();
+  const bindSegmented = (buttons, datasetKey, stateKey, { onChange = null } = {}) => {
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state[stateKey] = btn.dataset[datasetKey];
+        buttons.forEach((item) => item.classList.toggle('is-active', item === btn));
+        onChange?.();
+        scheduleRender();
+      });
     });
-  });
+  };
 
-  colorModeButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      state.colorMode = button.dataset.colorMode || 'mono';
-      colorModeButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-      updateSwatchAvailability();
-      scheduleRender();
-    });
-  });
-
-  transitionButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      state.transition = button.dataset.transition || 'dissolve';
-      state.animationStart = performance.now();
-      state.pausedAt = 0;
-      transitionButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-      scheduleRender();
-    });
-  });
-
-  pathButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      state.pathStyle = button.dataset.path || 'radial';
-      state.animationStart = performance.now();
-      state.pausedAt = 0;
-      pathButtons.forEach((item) => item.classList.toggle('is-active', item === button));
-      invalidatePointSets();
-      scheduleRender();
-    });
-  });
+  bindSegmented(shapeButtons, 'shape', 'shape');
+  bindSegmented(colorModeButtons, 'colorMode', 'colorMode', { onChange: updateSwatchAvailability });
+  bindSegmented(transitionButtons, 'transition', 'transition', { onChange: () => {
+    state.animationStart = performance.now();
+    state.pausedAt = 0;
+  }});
+  bindSegmented(pathButtons, 'path', 'pathStyle', { onChange: () => {
+    state.animationStart = performance.now();
+    state.pausedAt = 0;
+    invalidatePointSets();
+  }});
 
   fileInputs.forEach(input => {
     input.addEventListener('change', () => {
@@ -2084,10 +2069,8 @@ if (canvas && context) {
       const valueEl = control.parentElement?.querySelector('[data-value]');
       if (valueEl) valueEl.textContent = typeof val === 'number' ? +val.toFixed(2) : val;
     });
-    shapeButtons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.shape === state.shape));
-    colorModeButtons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.colorMode === state.colorMode));
-    transitionButtons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.transition === state.transition));
-    pathButtons.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.pathStyle === state.pathStyle));
+    [[shapeButtons, 'shape', 'shape'], [colorModeButtons, 'colorMode', 'colorMode'], [transitionButtons, 'transition', 'transition'], [pathButtons, 'path', 'pathStyle']]
+      .forEach(([btns, dk, sk]) => btns.forEach((btn) => btn.classList.toggle('is-active', btn.dataset[dk] === state[sk])));
     updateSwatchAvailability();
   };
 

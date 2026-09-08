@@ -646,110 +646,10 @@ button:focus-visible, input:focus-visible {
   border-radius: 3px;
 }
 
-.panel-tabs {
-  display: flex;
-  gap: 3px;
-  margin: 10px 10px 2px;
-  padding: 3px;
-  background: var(--bg-3);
-  border: 1px solid var(--border-1);
-  border-radius: 8px;
-}
-
-.panel-tab {
-  flex: 1;
-  padding: 7px 0;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-3);
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: color 150ms var(--ease), background 150ms var(--ease), box-shadow 150ms var(--ease);
-}
-
-.panel-tab:hover {
-  color: var(--text-1);
-  background: rgba(255,255,255,0.04);
-}
-
-.panel-tab.is-active {
-  color: var(--text-1);
-  background: var(--bg-1);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25), inset 0 0 0 1px var(--border-1);
-}
-
 html.panel-collapsed .control-panel {
   width: 0;
   border-right: 0;
   overflow: hidden;
-}
-
-/* Dropzone */
-.dropzone {
-  position: relative;
-  margin: 10px 10px 0;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  cursor: pointer;
-  background: var(--bg-2);
-  border: 1px dashed var(--border-2);
-  transition: border-color 120ms var(--ease), background 120ms var(--ease);
-}
-.dropzone:hover { border-color: var(--accent-mid); background: rgba(94,234,212,0.03); }
-
-.dropzone input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.dropzone-inner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-}
-
-.dropzone-icon {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.dropzone-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.dropzone-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-1);
-}
-
-.dropzone-sub {
-  font-size: 10px;
-  color: var(--text-3);
-}
-
-.dropzone-btn {
-  flex-shrink: 0;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: var(--radius-md);
-  background: var(--accent);
-  color: #042f2e;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 28px;
-  transition: background 120ms var(--ease);
-}
-.dropzone:hover .dropzone-btn {
-  background: var(--accent-strong);
 }
 
 /* ==================== Panel Tabs ==================== */
@@ -1413,11 +1313,6 @@ html.panel-collapsed .control-panel {
     border-right: 0;
     border-bottom: 1px solid var(--border-1);
     padding-bottom: 8px;
-  }
-
-  .dropzone {
-    width: calc(100% - 20px);
-    margin: 10px 10px 4px;
   }
 
   .panel-section {
