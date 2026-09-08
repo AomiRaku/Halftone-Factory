@@ -135,6 +135,38 @@
             </div>
           </section>
 
+          <section class="panel-section" data-tab="static" aria-label="画布">
+            <header class="section-header">
+              <div class="section-header-left">
+                <span class="section-label">画布</span>
+                <span class="section-hint">canvas</span>
+              </div>
+            </header>
+            <div class="panel-body">
+              <div class="panel-row">
+                <span class="row-label">基准边</span>
+                <div class="segmented segmented-two">
+                  <button type="button" class="is-active" data-canvas-base="width" aria-label="以宽度为基准" title="以宽度为基准">宽度</button>
+                  <button type="button" data-canvas-base="height" aria-label="以高度为基准" title="以高度为基准">高度</button>
+                </div>
+              </div>
+              <div class="slider-row">
+                <div class="slider-head">
+                  <span>基准分辨率</span>
+                  <output data-output="canvasRes">1000</output>
+                </div>
+                <input type="range" min="100" max="2000" step="100" value="1000" data-control="canvasRes">
+              </div>
+              <div class="panel-row">
+                <span class="row-label">留出边距</span>
+                <label class="toggle toggle-compact">
+                  <input type="checkbox" data-control="canvasPadding">
+                  <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                </label>
+              </div>
+            </div>
+          </section>
+
           <section class="panel-section" data-tab="static" aria-label="点">
             <header class="section-header">
               <div class="section-header-left">

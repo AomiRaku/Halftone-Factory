@@ -22,6 +22,7 @@ const shapeButtons = Array.from(document.querySelectorAll('[data-shape]'));
 const colorModeButtons = Array.from(document.querySelectorAll('[data-color-mode]'));
 const transitionButtons = Array.from(document.querySelectorAll('[data-transition]'));
 const pathButtons = Array.from(document.querySelectorAll('[data-path]'));
+const canvasBaseButtons = Array.from(document.querySelectorAll('[data-canvas-base]'));
 const controls = Array.from(document.querySelectorAll('[data-control]'));
 document.querySelectorAll('input[type="range"]').forEach((input) => {
   const min = +input.min || 0;
@@ -43,7 +44,8 @@ const outputs = {
   duration: document.querySelector('[data-output="duration"]'),
   blank: document.querySelector('[data-output="blank"]'),
   hold: document.querySelector('[data-output="hold"]'),
-  drift: document.querySelector('[data-output="drift"]')
+  drift: document.querySelector('[data-output="drift"]'),
+  canvasRes: document.querySelector('[data-output="canvasRes"]')
 };
 
 const state = {
@@ -88,13 +90,44 @@ const state = {
   viewX: 0,
   viewY: 0,
   viewResetToken: 0,
-  vectorZoom: false
+  vectorZoom: false,
+  canvasBase: 'width',
+  canvasRes: 1000,
+  canvasPadding: false
+};
+
+const CANVAS_PADDING = 50;
+
+const getCanvasDimensions = (source) => {
+  if (!source) return { width: 1000, height: 1000, contentW: 1000, contentH: 1000, offsetX: 0, offsetY: 0 };
+  const srcW = getSourceWidth(source);
+  const srcH = getSourceHeight(source);
+  const aspect = srcW / srcH;
+  let contentW, contentH;
+  if (state.canvasBase === 'height') {
+    contentH = state.canvasRes;
+    contentW = Math.round(state.canvasRes * aspect);
+  } else {
+    contentW = state.canvasRes;
+    contentH = Math.round(state.canvasRes / aspect);
+  }
+  if (state.canvasPadding) {
+    return {
+      width: contentW + CANVAS_PADDING * 2,
+      height: contentH + CANVAS_PADDING * 2,
+      contentW,
+      contentH,
+      offsetX: CANVAS_PADDING,
+      offsetY: CANVAS_PADDING
+    };
+  }
+  return { width: contentW, height: contentH, contentW, contentH, offsetX: 0, offsetY: 0 };
 };
 
 const sampleCanvas = document.createElement('canvas');
 const sampleContext = sampleCanvas.getContext('2d', { willReadFrequently: true });
 const context = canvas ? canvas.getContext('2d') : null;
-const renderCache = { canvas: null, ctx: null, signature: '', width: 0, height: 0, totalRatio: 0 };
+const renderCache = { canvas: null, ctx: null, signature: '', width: 0, height: 0, ratio: 0 };
 const downloadSvgButton = document.querySelector('[data-download-svg]');
 const GIF_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js';
 const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
@@ -350,6 +383,7 @@ const updateOutputs = () => {
   if (outputs.blank) outputs.blank.textContent = `${state.blank.toFixed(2)}s`;
   if (outputs.hold) outputs.hold.textContent = `${state.hold.toFixed(2)}s`;
   if (outputs.drift) outputs.drift.textContent = state.drift.toFixed(2);
+  if (outputs.canvasRes) outputs.canvasRes.textContent = String(state.canvasRes);
 };
 
 const updatePlayButton = () => {
@@ -638,9 +672,11 @@ const getFit = (source, width, height) => {
   };
 };
 
-const getPointSetSignature = (width, height) => [
+const getPointSetSignature = (width, height, offsetX = 0, offsetY = 0) => [
   width,
   height,
+  offsetX,
+  offsetY,
   state.step,
   state.rotation,
   state.threshold,
@@ -665,7 +701,7 @@ const getPointOrder = ({ x, y, column, row, width, height, centerX, centerY }) =
   return Math.round(radius * 260) * 10000 + Math.round((angle + Math.PI) * 1000);
 };
 
-const buildPointSet = (source, width, height) => {
+const buildPointSet = (source, width, height, offsetX = 0, offsetY = 0) => {
   const step = state.step;
   const columns = Math.ceil(width / step);
   const rows = Math.ceil(height / step);
@@ -688,8 +724,8 @@ const buildPointSet = (source, width, height) => {
   const cosR = Math.cos(rotRad);
   const sinR = Math.sin(rotRad);
 
-  for (let row = 0; row < rows; row += 1) {
-    for (let column = 0; column < columns; column += 1) {
+  for (let row = -1; row <= rows; row += 1) {
+    for (let column = -1; column <= columns; column += 1) {
       const gx = column * step + step * 0.5;
       const gy = row * step + step * 0.5;
 
@@ -702,9 +738,8 @@ const buildPointSet = (source, width, height) => {
         oy = dx * sinR + dy * cosR + centerY;
       }
 
-      const sc = Math.round(ox / step);
-      const sr = Math.round(oy / step);
-      if (sc < 0 || sc >= columns || sr < 0 || sr >= rows) continue;
+      const sc = Math.max(0, Math.min(columns - 1, Math.round(ox / step)));
+      const sr = Math.max(0, Math.min(rows - 1, Math.round(oy / step)));
 
       const index = (sr * columns + sc) * 4;
       const alpha = pixels[index + 3] / 255;
@@ -730,8 +765,8 @@ const buildPointSet = (source, width, height) => {
       if (strength <= 0.025 * (1 - state.detail * 0.85)) continue;
 
       points.push({
-        x: ox,
-        y: oy,
+        x: ox + offsetX,
+        y: oy + offsetY,
         red,
         green,
         blue,
@@ -749,16 +784,16 @@ const buildPointSet = (source, width, height) => {
   }));
 };
 
-const rebuildPointSets = (width, height) => {
-  const signature = getPointSetSignature(width, height);
+const rebuildPointSets = (width, height, offsetX = 0, offsetY = 0) => {
+  const signature = getPointSetSignature(width, height, offsetX, offsetY);
   if (hasDynamicSource()) {
-    state.pointSets = state.sources.map((item) => buildPointSet(item.source, width, height));
+    state.pointSets = state.sources.map((item) => buildPointSet(item.source, width, height, offsetX, offsetY));
     state.pointSetSignature = '';
     return;
   }
 
   if (state.pointSetSignature === signature && state.pointSets.length === state.sources.length) return;
-  state.pointSets = state.sources.map((item) => buildPointSet(item.source, width, height));
+  state.pointSets = state.sources.map((item) => buildPointSet(item.source, width, height, offsetX, offsetY));
   state.pointSetSignature = signature;
 };
 
@@ -825,6 +860,15 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
   const markCos = Math.cos(markRad);
   const markSin = Math.sin(markRad);
   const hasMarkRot = state.markRotation !== 0;
+  const pureMode = state.colorMode === 'pure';
+  let preQR = 0, preQG = 0, preQB = 0, preFillStr = '';
+
+  if (pureMode) {
+    preQR = (ink.r >> 5) * 32;
+    preQG = (ink.g >> 5) * 32;
+    preQB = (ink.b >> 5) * 32;
+    preFillStr = `rgb(${preQR} ${preQG} ${preQB})`;
+  }
 
   for (let i = 0, len = points.length; i < len; i += 1) {
     const point = points[i];
@@ -843,25 +887,35 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
       y += driftAmount * state.step * 0.45 * Math.cos(tick * 0.0027 + seed * 1.7);
     }
 
-    const colour = getMarkColour(point, paper, ink, point.strength, colourCtx);
-    const QR = (colour.r >> 5) * 32;
-    const QG = (colour.g >> 5) * 32;
-    const QB = (colour.b >> 5) * 32;
-    const fillStr = `rgb(${QR} ${QG} ${QB})`;
+    let fillStr, QR, QG, QB;
+    if (pureMode) {
+      fillStr = preFillStr;
+      QR = preQR; QG = preQG; QB = preQB;
+    } else {
+      const colour = getMarkColour(point, paper, ink, point.strength, colourCtx);
+      QR = (colour.r >> 5) * 32;
+      QG = (colour.g >> 5) * 32;
+      QB = (colour.b >> 5) * 32;
+      fillStr = `rgb(${QR} ${QG} ${QB})`;
+    }
+
     const alpha = allowTransparency
       ? clamp(0.18 + point.strength * 0.92, 0, 1) * clamp(visibility, 0, 1)
       : 1;
     const alphaBucket = Math.round(alpha * 20) / 20;
 
-    let extra = '';
+    let batchKey;
+    let extra = 0;
     if (shape !== 'dot' && shape !== 'square') {
-      extra = `|w${Math.round(Math.max(1, radius * (shape === 'slash' ? 0.88 : shape === 'plus' ? 0.66 : 0.44)) * 10)}`;
+      extra = Math.max(1, Math.round(radius * (shape === 'slash' ? 0.88 : shape === 'plus' ? 0.66 : 0.44)) * 10);
+      batchKey = `${QR}|${QG}|${QB}|${alphaBucket}|${extra}`;
+    } else {
+      batchKey = `${QR}|${QG}|${QB}|${alphaBucket}`;
     }
-    const batchKey = fillStr + '|' + alphaBucket + extra;
 
     let batch = batches.get(batchKey);
     if (!batch) {
-      batch = { paths: [new Path2D()], fillStr, alpha: alphaBucket, lineWidth: extra ? Number.parseFloat(extra.slice(2)) / 10 : 0, count: 0 };
+      batch = { paths: [new Path2D()], fillStr, alpha: alphaBucket, lineWidth: extra ? extra / 10 : 0, count: 0 };
       batches.set(batchKey, batch);
     }
 
@@ -1012,20 +1066,30 @@ const resetView = () => {
   state.viewX = 0;
   state.viewY = 0;
   state.viewResetToken += 1;
+
+  const wrap = canvas?.parentElement;
+  const activeSource = state.sources[state.activeIndex]?.source || state.sources[0]?.source;
+  const dims = getCanvasDimensions(activeSource);
+  if (wrap && wrap.clientWidth > 0 && dims.width > 0) {
+    const fitScale = Math.min(wrap.clientWidth / dims.width, wrap.clientHeight / dims.height, 1);
+    state.viewScale = fitScale;
+    state.viewX = (wrap.clientWidth - dims.width * fitScale) * 0.5;
+    state.viewY = (wrap.clientHeight - dims.height * fitScale) * 0.5;
+  }
+
   applyView();
 };
 
-const buildRenderSignature = (width, height, totalRatio) => {
+const buildRenderSignature = (width, height, ratio) => {
   const morph = state.morph && state.sources.length > 1;
   return [
-    width, height, totalRatio,
+    width, height, ratio.toFixed(5),
     state.activeIndex,
     state.shape, state.colorMode, state.pathStyle, state.transition,
     state.step, state.scale, state.threshold, state.contrast,
     state.detail, state.highlightDetail, state.invert,
     state.paper, state.ink, state.shadowInk, state.midInk, state.highlightInk,
     state.allowTransparency, state.texture, state.transparent,
-    state.viewX.toFixed(1), state.viewY.toFixed(1), state.viewScale.toFixed(2),
     morph ? 'morph' : (state.drift > 0.001 ? 'drift' : 'static'),
     state.sources.map((s) => s.name).join('|')
   ].join(':');
@@ -1034,14 +1098,22 @@ const buildRenderSignature = (width, height, totalRatio) => {
 const render = () => {
   if (!canvas || !context || state.sources.length === 0) return;
 
-  const width = Math.max(320, Math.round(canvas.offsetWidth || 960));
-  const height = Math.max(320, Math.round(canvas.offsetHeight || 640));
+  const activeSource = state.sources[state.activeIndex]?.source || state.sources[0]?.source;
+  const dims = getCanvasDimensions(activeSource);
+  const width = dims.width;
+  const height = dims.height;
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   const timestamp = state.playing ? performance.now() : state.pausedAt || performance.now();
   const sampleScale = Math.max(1, state.canvasScale || 1);
-  const totalRatio = pixelRatio * sampleScale;
-  const deviceWidth = Math.round(width * totalRatio);
-  const deviceHeight = Math.round(height * totalRatio);
+  const ratio = pixelRatio * sampleScale;
+  const deviceWidth = Math.max(1, Math.round(width * ratio));
+  const deviceHeight = Math.max(1, Math.round(height * ratio));
+
+  const sizeChanged = canvas.style.width !== `${width}px` || canvas.style.height !== `${height}px`;
+  if (canvas.style.width !== `${width}px`) canvas.style.width = `${width}px`;
+  if (canvas.style.height !== `${height}px`) canvas.style.height = `${height}px`;
+
+  if (sizeChanged) resetView();
 
   if (canvas.width !== deviceWidth || canvas.height !== deviceHeight) {
     canvas.width = deviceWidth;
@@ -1049,13 +1121,13 @@ const render = () => {
   }
 
   applyView();
-  context.setTransform(totalRatio, 0, 0, totalRatio, 0, 0);
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.clearRect(0, 0, width, height);
 
   const isAnimated = state.morph && state.sources.length > 1
     || state.drift > 0.001
     || hasDynamicSource();
-  const sig = buildRenderSignature(width, height, totalRatio);
+  const sig = buildRenderSignature(width, height, ratio);
 
   if (!isAnimated && renderCache.signature === sig) {
     context.drawImage(renderCache.canvas, 0, 0, width, height);
@@ -1082,7 +1154,7 @@ const render = () => {
 
   context.lineCap = 'round';
   context.lineJoin = 'round';
-  rebuildPointSets(width, height);
+  rebuildPointSets(dims.contentW, dims.contentH, dims.offsetX, dims.offsetY);
 
   const morph = getMorphState(timestamp);
   if (state.morph && state.sources.length > 1 && state.transition === 'dissolve') {
@@ -1096,16 +1168,16 @@ const render = () => {
   context.globalAlpha = 1;
 
   if (!isAnimated) {
-    if (!renderCache.canvas || renderCache.width !== width || renderCache.height !== height || renderCache.totalRatio !== totalRatio) {
+    if (!renderCache.canvas || renderCache.width !== width || renderCache.height !== height || renderCache.ratio !== ratio) {
       renderCache.canvas = document.createElement('canvas');
       renderCache.canvas.width = deviceWidth;
       renderCache.canvas.height = deviceHeight;
       renderCache.ctx = renderCache.canvas.getContext('2d');
       renderCache.width = width;
       renderCache.height = height;
-      renderCache.totalRatio = totalRatio;
+      renderCache.ratio = ratio;
     }
-    renderCache.ctx.setTransform(totalRatio, 0, 0, totalRatio, 0, 0);
+    renderCache.ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     renderCache.ctx.clearRect(0, 0, width, height);
     renderCache.ctx.drawImage(canvas, 0, 0, width, height, 0, 0, width, height);
     renderCache.signature = sig;
@@ -1683,8 +1755,10 @@ const exportSvg = () => {
 
   setButtonBusy(downloadSvgButton, true, '生成');
 
-  const width = Math.max(320, Math.round(canvas.offsetWidth || 960));
-  const height = Math.max(320, Math.round(canvas.offsetHeight || 640));
+  const activeSource = state.sources[state.activeIndex]?.source || state.sources[0]?.source;
+  const dims = getCanvasDimensions(activeSource);
+  const width = dims.width;
+  const height = dims.height;
 
   const wasPlaying = state.playing;
   if (wasPlaying) {
@@ -1696,7 +1770,7 @@ const exportSvg = () => {
 
   const timestamp = state.pausedAt || performance.now();
   invalidatePointSets();
-  rebuildPointSets(width, height);
+  rebuildPointSets(dims.contentW, dims.contentH, dims.offsetX, dims.offsetY);
 
   const paper = hexToRgb(state.paper);
   const ink = hexToRgb(state.ink);
@@ -1774,6 +1848,10 @@ const updateControl = (control) => {
   }
 
   if (['step', 'rotation', 'threshold', 'contrast', 'detail', 'highlightDetail', 'invert'].includes(key)) invalidatePointSets();
+  if (['canvasRes', 'canvasPadding'].includes(key)) {
+    resetView();
+    invalidatePointSets();
+  }
 };
 
 if (canvas && context) {
@@ -1885,6 +1963,10 @@ if (canvas && context) {
   bindSegmented(pathButtons, 'path', 'pathStyle', { onChange: () => {
     state.animationStart = performance.now();
     state.pausedAt = 0;
+    invalidatePointSets();
+  }});
+  bindSegmented(canvasBaseButtons, 'canvasBase', 'canvasBase', { onChange: () => {
+    resetView();
     invalidatePointSets();
   }});
 
@@ -2069,7 +2151,7 @@ if (canvas && context) {
       const valueEl = control.parentElement?.querySelector('[data-value]');
       if (valueEl) valueEl.textContent = typeof val === 'number' ? +val.toFixed(2) : val;
     });
-    [[shapeButtons, 'shape', 'shape'], [colorModeButtons, 'colorMode', 'colorMode'], [transitionButtons, 'transition', 'transition'], [pathButtons, 'path', 'pathStyle']]
+    [[shapeButtons, 'shape', 'shape'], [colorModeButtons, 'colorMode', 'colorMode'], [transitionButtons, 'transition', 'transition'], [pathButtons, 'path', 'pathStyle'], [canvasBaseButtons, 'canvasBase', 'canvasBase']]
       .forEach(([btns, dk, sk]) => btns.forEach((btn) => btn.classList.toggle('is-active', btn.dataset[dk] === state[sk])));
     updateSwatchAvailability();
   };
@@ -2105,6 +2187,9 @@ if (canvas && context) {
     state.allowTransparency = false;
     state.morph = false;
     state.playing = false;
+    state.canvasBase = 'width';
+    state.canvasRes = 1000;
+    state.canvasPadding = false;
     syncControlsFromState();
     updatePlayButton();
     invalidatePointSets();
