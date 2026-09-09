@@ -1078,6 +1078,10 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
   const markCos = Math.cos(markRad);
   const markSin = Math.sin(markRad);
   const hasMarkRot = state.markRotation !== 0;
+  const triWCos = 0.8660254 * markCos;
+  const triWSin = 0.8660254 * markSin;
+  const triHalfSin = 0.5 * markSin;
+  const triHalfCos = 0.5 * markCos;
   const pureMode = state.colorMode === 'pure';
   let preQR = 0, preQG = 0, preQB = 0, preFillStr = '';
 
@@ -1128,7 +1132,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
     // 构造 batch key：颜色 + alpha + (线形额外)线宽
     let batchKey;
     let extra = 0;
-    if (shape !== 'dot' && shape !== 'square') {
+    if (shape !== 'dot' && shape !== 'square' && shape !== 'triangle') {
       extra = Math.max(1, Math.round(radius * (shape === 'slash' ? 0.88 : shape === 'plus' ? 0.66 : 0.44)) * 10);
       batchKey = `${QR}|${QG}|${QB}|${alphaBucket}|${extra}`;
     } else {
@@ -1163,6 +1167,18 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
       } else {
         const size = radius * 1.82;
         path.rect(x - size * 0.5, y - size * 0.5, size, size);
+      }
+    } else if (shape === 'triangle') {
+      const r = radius;
+      if (hasMarkRot) {
+        path.moveTo(x + r * markSin, y - r * markCos);
+        path.lineTo(x - r * triWCos - r * triHalfSin, y - r * triWSin + r * triHalfCos);
+        path.lineTo(x + r * triWCos - r * triHalfSin, y + r * triWSin + r * triHalfCos);
+      } else {
+        const w = r * 0.8660254;
+        path.moveTo(x, y - r);
+        path.lineTo(x - w, y + r * 0.5);
+        path.lineTo(x + w, y + r * 0.5);
       }
     } else if (shape === 'slash') {
       if (hasMarkRot) {
@@ -1211,7 +1227,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
     context.strokeStyle = batch.fillStr;
     context.globalAlpha = batch.alpha;
 
-    if (shape === 'dot' || shape === 'square') {
+    if (shape === 'dot' || shape === 'square' || shape === 'triangle') {
       for (const p of batch.paths) context.fill(p);
     } else {
       context.lineWidth = Math.max(1, batch.lineWidth);
@@ -1376,7 +1392,7 @@ const render = () => {
       const toName = state.morph && state.sources.length > 1 ? state.sources[morph.toIndex]?.name || fromName : fromName;
       const activePoints = state.pointSets[displayIndex]?.length || 0;
       const mediaMode = hasDynamicSource() ? '动态' : '静态';
-      const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号' }[state.shape] || state.shape;
+      const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号', triangle: '三角形' }[state.shape] || state.shape;
       setCaption(state.exportStatus || (state.morph && state.sources.length > 1
         ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
         : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`));
@@ -1441,7 +1457,7 @@ const render = () => {
     const toName = state.morph && state.sources.length > 1 ? state.sources[morph.toIndex]?.name || fromName : fromName;
     const activePoints = state.pointSets[displayIndex]?.length || 0;
     const mediaMode = hasDynamicSource() ? '动态' : '静态';
-    const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号' }[state.shape] || state.shape;
+    const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号', triangle: '三角形' }[state.shape] || state.shape;
     setCaption(state.morph && state.sources.length > 1
       ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
       : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`);
@@ -1949,6 +1965,15 @@ const buildSvgMark = (x, y, strength, paper, ink, visibility, point, colourCtx) 
     const size = radius * 1.82;
     const half = size * 0.5;
     return `<rect x="${(x - half).toFixed(2)}" y="${(y - half).toFixed(2)}" width="${size.toFixed(2)}" height="${size.toFixed(2)}" fill="${fillColor}" opacity="${opacity.toFixed(3)}"${rotateAttr}/>`;
+  }
+
+  if (state.shape === 'triangle') {
+    const r = radius;
+    const w = r * 0.8660254;
+    const p1 = `${x.toFixed(2)},${(y - r).toFixed(2)}`;
+    const p2 = `${(x - w).toFixed(2)},${(y + r * 0.5).toFixed(2)}`;
+    const p3 = `${(x + w).toFixed(2)},${(y + r * 0.5).toFixed(2)}`;
+    return `<polygon points="${p1} ${p2} ${p3}" fill="${fillColor}" opacity="${opacity.toFixed(3)}"${rotateAttr}/>`;
   }
 
   if (state.shape === 'slash') {
