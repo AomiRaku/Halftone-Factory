@@ -144,7 +144,7 @@ const showWelcome = () => {
       <div class="confirm-title">欢迎</div>
       <div class="confirm-body">欢迎来到半调工厂。首次使用，可以前往 GitHub 页面查看介绍，或是直接开始。</div>
       <div class="confirm-actions">
-        <button type="button" class="btn btn-ghost" data-welcome-github>在 GitHub 查看</button>
+        <button type="button" class="btn btn-link" data-welcome-github>在 GitHub 查看</button>
         <button type="button" class="btn btn-primary" data-welcome-start>开始</button>
       </div>
     </div>
@@ -766,7 +766,7 @@ const showConfirm = (message, opts = {}) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
 });
 
-const APP_VERSION = '1.2.2-91527';
+const APP_VERSION = '1.2.4-91854';
 
 // 关于对话框
 const showAbout = () => {
