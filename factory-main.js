@@ -615,9 +615,23 @@ const renderMenu = () => {
 };
 
 // ==================== 弹层控制 ====================
+let popoverBackdrop = null;
+const showPopoverBackdrop = () => {
+  if (popoverBackdrop) return;
+  popoverBackdrop = document.createElement('div');
+  popoverBackdrop.className = 'popover-backdrop';
+  document.body.appendChild(popoverBackdrop);
+};
+const hidePopoverBackdrop = () => {
+  if (!popoverBackdrop) return;
+  popoverBackdrop.remove();
+  popoverBackdrop = null;
+};
+
 const openMenu = () => {
   if (!menuPopover || !menuToggle) return;
   renderMenu();
+  showPopoverBackdrop();
   menuPopover.removeAttribute('hidden');
   menuPopover.classList.remove('is-closing');
   requestAnimationFrame(() => menuPopover.classList.add('is-open'));
@@ -626,6 +640,7 @@ const openMenu = () => {
 
 const closeMenu = () => {
   if (!menuPopover || !menuToggle) return;
+  hidePopoverBackdrop();
   menuPopover.classList.remove('is-open');
   menuPopover.classList.add('is-closing');
   const onEnd = () => {
@@ -685,7 +700,7 @@ const showConfirm = (message) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
 });
 
-const APP_VERSION = '1.2.1-91457';
+const APP_VERSION = '1.2.2-91527';
 
 // 关于对话框
 const showAbout = () => {
@@ -2513,6 +2528,7 @@ if (canvas && context) {
   // 导出菜单
   const openExportMenu = () => {
     if (!exportPopover || !exportToggle) return;
+    showPopoverBackdrop();
     exportPopover.removeAttribute('hidden');
     exportPopover.classList.remove('is-closing');
     requestAnimationFrame(() => exportPopover.classList.add('is-open'));
@@ -2520,6 +2536,7 @@ if (canvas && context) {
   };
   const closeExportMenu = () => {
     if (!exportPopover || !exportToggle) return;
+    hidePopoverBackdrop();
     exportPopover.classList.remove('is-open');
     exportPopover.classList.add('is-closing');
     const onEnd = () => {
@@ -2547,6 +2564,7 @@ if (canvas && context) {
   // 工具菜单（关于 / 设置）
   const openUtilMenu = () => {
     if (!utilMenuPopover || !utilMenuToggle) return;
+    showPopoverBackdrop();
     utilMenuPopover.removeAttribute('hidden');
     utilMenuPopover.classList.remove('is-closing');
     requestAnimationFrame(() => utilMenuPopover.classList.add('is-open'));
@@ -2554,6 +2572,7 @@ if (canvas && context) {
   };
   const closeUtilMenu = () => {
     if (!utilMenuPopover || !utilMenuToggle) return;
+    hidePopoverBackdrop();
     utilMenuPopover.classList.remove('is-open');
     utilMenuPopover.classList.add('is-closing');
     const onEnd = () => {
