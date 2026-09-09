@@ -888,16 +888,13 @@ const setExperimentalEnabled = (enabled) => {
 };
 
 const applySliderAntiMistouch = () => {
-  const isMobile = window.matchMedia('(max-width: 640px)').matches;
-  const forceOn = isMobile;
-  const active = forceOn || state.sliderAntiMistouch;
+  const active = window.matchMedia('(max-width: 640px)').matches || state.sliderAntiMistouch;
   document.body.classList.toggle('slider-anti-mistouch', active);
 };
 
 // 设置对话框
 const showSettings = () => {
-  const isMobile = window.matchMedia('(max-width: 640px)').matches;
-  const sliderForcedOn = isMobile;
+  const sliderForcedOn = window.matchMedia('(max-width: 640px)').matches;
 
   const overlay = document.createElement('div');
   overlay.className = 'confirm-overlay is-about';
@@ -1540,6 +1537,7 @@ const render = () => {
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
   context.clearRect(0, 0, width, height);
 
+  const morph = state.morph && state.sources.length > 1 ? getMorphState(timestamp) : null;
   const isAnimated = state.playing && (
     (state.morph && state.sources.length > 1)
     || state.drift > 0.001
@@ -1555,13 +1553,13 @@ const render = () => {
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     updateOutputs();
     if (caption) {
-      const displayIndex = state.morph && state.sources.length > 1 ? morph.fromIndex : state.activeIndex;
+      const displayIndex = morph ? morph.fromIndex : state.activeIndex;
       const fromName = state.sources[displayIndex]?.name || '素材';
-      const toName = state.morph && state.sources.length > 1 ? state.sources[morph.toIndex]?.name || fromName : fromName;
+      const toName = morph ? state.sources[morph.toIndex]?.name || fromName : fromName;
       const activePoints = state.pointSets[displayIndex]?.length || 0;
       const mediaMode = hasDynamicSource() ? '动态' : '静态';
       const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号', triangle: '三角形' }[state.shape] || state.shape;
-      setCaption(state.exportStatus || (state.morph && state.sources.length > 1
+      setCaption(state.exportStatus || (morph
         ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
         : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`));
     }
@@ -1587,7 +1585,6 @@ const render = () => {
   rebuildPointSets(dims.contentW, dims.contentH, dims.offsetX, dims.offsetY);
 
   // 4) 绘制：三种模式 —— dissolve / path morph / 单点集
-  const morph = getMorphState(timestamp);
   if (state.morph && state.sources.length > 1 && state.transition === 'dissolve') {
     drawDissolve(morph, paper, ink, timestamp, colourCtx);
   } else if (state.morph && state.sources.length > 1) {
@@ -1620,13 +1617,13 @@ const render = () => {
       return;
     }
 
-    const displayIndex = state.morph && state.sources.length > 1 ? morph.fromIndex : state.activeIndex;
+    const displayIndex = morph ? morph.fromIndex : state.activeIndex;
     const fromName = state.sources[displayIndex]?.name || '素材';
-    const toName = state.morph && state.sources.length > 1 ? state.sources[morph.toIndex]?.name || fromName : fromName;
+    const toName = morph ? state.sources[morph.toIndex]?.name || fromName : fromName;
     const activePoints = state.pointSets[displayIndex]?.length || 0;
     const mediaMode = hasDynamicSource() ? '动态' : '静态';
     const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号', triangle: '三角形' }[state.shape] || state.shape;
-    setCaption(state.morph && state.sources.length > 1
+    setCaption(morph
       ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
       : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`);
   }
@@ -1974,7 +1971,6 @@ const exportWebm = async () => {
       stream.getTracks().forEach((track) => track.stop());
       setExportStatus('录制已取消。');
       clearExportStatusSoon('录制已取消。');
-      restoreExportPlayback(snapshot);
       setButtonBusy(downloadWebmButton, false);
       return;
     }
@@ -2087,7 +2083,6 @@ const exportGif = async () => {
       await wait(frameDelay);
     }
 
-    restoreExportPlayback(snapshot);
     if (gifAbort) throw new Error('cancelled');
     setExportStatus('正在编码 GIF 0%...');
     gif.render();
