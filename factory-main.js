@@ -27,13 +27,19 @@ const canvasBaseButtons = Array.from(document.querySelectorAll('[data-canvas-bas
 const controls = Array.from(document.querySelectorAll('[data-control]'));
 const panelToggle = document.querySelector('[data-panel-toggle]');
 
+const getRangePct = (input, value = +input.value) => {
+  const min = +input.min || 0;
+  const max = +input.max || 100;
+  return ((value - min) / (max - min)) * 100;
+};
+
 // 滑块刻度线位置计算（CSS 变量 --tick-pct / --val-pct）
 document.querySelectorAll('input[type="range"]').forEach((input) => {
   const min = +input.min || 0;
   const max = +input.max || 100;
   const def = input.hasAttribute('value') ? +input.getAttribute('value') : (min + max) / 2;
-  const defPct = (def - min) / (max - min) * 100;
-  const curPct = (+input.value - min) / (max - min) * 100;
+  const defPct = getRangePct(input, def);
+  const curPct = getRangePct(input);
   input.style.setProperty('--tick-pct', defPct.toFixed(2) + '%');
   input.style.setProperty('--val-pct', curPct.toFixed(2) + '%');
   const row = input.closest('.slider-row');
@@ -342,20 +348,27 @@ const buildColourCtx = () => ({
 });
 
 // ==================== 背景纹理 ====================
-// 在画布上绘制旋转的网格线 + 网格交点，营造印刷纹理感
-const paintBackgroundTexture = (width, height) => {
-  if (state.transparent || !state.texture) return;
-
+const buildTextureMetrics = (width, height) => {
   const grid = Math.max(1, state.step);
-  const mid = hexToRgb(state.midInk);
   const cx = width * 0.5;
   const cy = height * 0.5;
   const diag = Math.hypot(width, height);
   const half = diag * 0.5;
-  const startX = Math.floor((cx - half) / grid) * grid + grid * 0.5;
-  const endX = cx + half;
-  const startY = Math.floor((cy - half) / grid) * grid + grid * 0.5;
-  const endY = cy + half;
+  return {
+    grid, cx, cy, diag, half,
+    startX: Math.floor((cx - half) / grid) * grid + grid * 0.5,
+    endX: cx + half,
+    startY: Math.floor((cy - half) / grid) * grid + grid * 0.5,
+    endY: cy + half
+  };
+};
+
+// 在画布上绘制旋转的网格线 + 网格交点，营造印刷纹理感
+const paintBackgroundTexture = (width, height) => {
+  if (state.transparent || !state.texture) return;
+
+  const { grid, cx, cy, half, startX, endX, startY, endY } = buildTextureMetrics(width, height);
+  const mid = hexToRgb(state.midInk);
   context.save();
   if (state.rotation) {
     context.translate(cx, cy);
@@ -766,7 +779,7 @@ const showConfirm = (message, opts = {}) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
 });
 
-const APP_VERSION = '1.2.4-91854';
+const APP_VERSION = '1.2.5-92306';
 
 // 关于对话框
 const showAbout = () => {
@@ -1499,6 +1512,20 @@ const buildRenderSignature = (width, height, ratio) => {
   ].join(':');
 };
 
+const SHAPE_LABELS = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号', triangle: '三角形' };
+
+const buildRenderCaption = (morph) => {
+  const displayIndex = morph ? morph.fromIndex : state.activeIndex;
+  const fromName = state.sources[displayIndex]?.name || '素材';
+  const toName = morph ? state.sources[morph.toIndex]?.name || fromName : fromName;
+  const activePoints = state.pointSets[displayIndex]?.length || 0;
+  const mediaMode = hasDynamicSource() ? '动态' : '静态';
+  const shapeLabel = SHAPE_LABELS[state.shape] || state.shape;
+  return morph
+    ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
+    : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`;
+};
+
 // ==================== 主渲染函数 ====================
 const render = () => {
   if (!canvas || !context) return;
@@ -1552,17 +1579,7 @@ const render = () => {
     context.drawImage(renderCache.canvas, 0, 0, deviceWidth, deviceHeight, 0, 0, deviceWidth, deviceHeight);
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     updateOutputs();
-    if (caption) {
-      const displayIndex = morph ? morph.fromIndex : state.activeIndex;
-      const fromName = state.sources[displayIndex]?.name || '素材';
-      const toName = morph ? state.sources[morph.toIndex]?.name || fromName : fromName;
-      const activePoints = state.pointSets[displayIndex]?.length || 0;
-      const mediaMode = hasDynamicSource() ? '动态' : '静态';
-      const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号', triangle: '三角形' }[state.shape] || state.shape;
-      setCaption(state.exportStatus || (morph
-        ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
-        : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`));
-    }
+    if (caption) setCaption(state.exportStatus || buildRenderCaption(morph));
     return;
   }
 
@@ -1616,16 +1633,7 @@ const render = () => {
       setCaption(state.exportStatus);
       return;
     }
-
-    const displayIndex = morph ? morph.fromIndex : state.activeIndex;
-    const fromName = state.sources[displayIndex]?.name || '素材';
-    const toName = morph ? state.sources[morph.toIndex]?.name || fromName : fromName;
-    const activePoints = state.pointSets[displayIndex]?.length || 0;
-    const mediaMode = hasDynamicSource() ? '动态' : '静态';
-    const shapeLabel = { dot: '圆点', cross: '叉号', square: '方块', slash: '斜线', plus: '加号', triangle: '三角形' }[state.shape] || state.shape;
-    setCaption(morph
-      ? `${fromName} → ${toName} / ${mediaMode} / ${activePoints} 粒`
-      : `${fromName} / ${shapeLabel} / ${mediaMode} / ${activePoints} 粒`);
+    setCaption(buildRenderCaption(morph));
   }
 };
 
@@ -2260,18 +2268,10 @@ const exportSvg = () => {
   }
 
   if (state.texture && !state.transparent) {
-    const grid = Math.max(1, state.step);
+    const { grid, cx, cy, half, startX, endX, startY, endY } = buildTextureMetrics(width, height);
     const mid = hexToRgb(state.midInk);
     const stroke = `rgba(${mid.r},${mid.g},${mid.b},0.15)`;
     const dotFill = `rgba(${mid.r},${mid.g},${mid.b},0.1)`;
-    const cx = width * 0.5;
-    const cy = height * 0.5;
-    const diag = Math.hypot(width, height);
-    const half = diag * 0.5;
-    const startX = Math.floor((cx - half) / grid) * grid + grid * 0.5;
-    const endX = cx + half;
-    const startY = Math.floor((cy - half) / grid) * grid + grid * 0.5;
-    const endY = cy + half;
     const rotAttr = state.rotation ? ` transform="rotate(${state.rotation.toFixed(2)} ${cx.toFixed(2)} ${cy.toFixed(2)})"` : '';
 
     svgParts.push(`<g stroke="${stroke}" stroke-width="1" fill="none"${rotAttr}>`);
@@ -2545,9 +2545,7 @@ if (canvas && context) {
     control.addEventListener('input', () => {
       updateControl(control);
       if (control.type === 'range') {
-        const min = +control.min || 0;
-        const max = +control.max || 100;
-        const pct = (+control.value - min) / (max - min) * 100;
+        const pct = getRangePct(control);
         control.style.setProperty('--val-pct', pct.toFixed(2) + '%');
         const row = control.closest('.slider-row');
         if (row) row.style.setProperty('--val-pct', pct.toFixed(2) + '%');
@@ -2595,9 +2593,7 @@ if (canvas && context) {
 
       nativeRange.addEventListener('input', () => {
         popOutput.textContent = nativeRange.value;
-        const min = +nativeRange.min || 0;
-        const max = +nativeRange.max || 100;
-        const pct = (+nativeRange.value - min) / (max - min) * 100;
+        const pct = getRangePct(nativeRange);
         row.style.setProperty('--val-pct', pct.toFixed(2) + '%');
       });
 
