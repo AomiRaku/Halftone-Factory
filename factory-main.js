@@ -120,7 +120,69 @@ const state = {
   canvasRes: 1000,
   canvasPadding: false,
   // --- 功能开关 ---
-  experimental: false
+  experimental: false,
+  sliderAntiMistouch: false,
+  loadDemoOnStart: true
+};
+
+// ==================== 设置持久化 ====================
+// 持久化 key 名 + 需要持久化的 state 字段列表
+// 后续在设置页新增的开关，只需把字段名追加到这个数组即可自动参与存读
+const SETTINGS_STORAGE_KEY = 'halftone-factory:settings:v1';
+const SETTING_KEYS = ['experimental', 'sliderAntiMistouch', 'loadDemoOnStart'];
+const WELCOME_SHOWN_KEY = 'halftone-factory:welcome:shown:v1';
+
+const showWelcome = () => {
+  let alreadyShown = false;
+  try { alreadyShown = localStorage.getItem(WELCOME_SHOWN_KEY) === '1'; } catch (_) {}
+  if (alreadyShown) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-dialog" role="dialog" aria-modal="true">
+      <div class="confirm-title">欢迎</div>
+      <div class="confirm-body">欢迎来到半调工厂。首次使用，可以前往 GitHub 页面查看介绍，或是直接开始。</div>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-ghost" data-welcome-github>在 GitHub 查看</button>
+        <button type="button" class="btn btn-primary" data-welcome-start>开始</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('is-visible'));
+
+  const close = () => {
+    try { localStorage.setItem(WELCOME_SHOWN_KEY, '1'); } catch (_) {}
+    overlay.classList.remove('is-visible');
+    setTimeout(() => overlay.remove(), 300);
+  };
+
+  overlay.querySelector('[data-welcome-github]')?.addEventListener('click', () => {
+    window.open('https://github.com/AomiRaku/Halftone-Factory', '_blank', 'noopener,noreferrer');
+  });
+  overlay.querySelector('[data-welcome-start]')?.addEventListener('click', close);
+};
+
+const loadSettingsFromStorage = () => {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    for (const key of SETTING_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(saved, key)) {
+        state[key] = saved[key];
+      }
+    }
+  } catch (_) { /* 损坏或旧版本格式则忽略 */ }
+};
+
+const saveSettingsToStorage = () => {
+  try {
+    const payload = {};
+    for (const key of SETTING_KEYS) payload[key] = state[key];
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+  } catch (_) { /* 存储被禁用或满了，静默忽略 */ }
 };
 
 // ==================== 常量 ====================
@@ -675,12 +737,16 @@ const setPanelDisabled = (disabled) => {
 };
 
 // 通用确认对话框（Promise 风格，点击确定 resolve true，取消 resolve false）
-const showConfirm = (message) => new Promise((resolve) => {
+const showConfirm = (message, opts = {}) => new Promise((resolve) => {
+  const { title = '确认', danger = false, critical = false } = opts;
   const overlay = document.createElement('div');
-  overlay.className = 'confirm-overlay';
+  let overlayClass = 'confirm-overlay';
+  if (critical) overlayClass += ' is-danger is-critical';
+  else if (danger) overlayClass += ' is-danger';
+  overlay.className = overlayClass;
   overlay.innerHTML = `
     <div class="confirm-dialog" role="dialog" aria-modal="true">
-      <div class="confirm-title">确认</div>
+      <div class="confirm-title">${title}</div>
       <div class="confirm-body">${message}</div>
       <div class="confirm-actions">
         <button type="button" class="btn btn-ghost" data-cancel>取消</button>
@@ -812,6 +878,7 @@ const switchPanelTab = (target) => {
 
 const setExperimentalEnabled = (enabled) => {
   state.experimental = enabled;
+  saveSettingsToStorage();
   const tabsBar = document.querySelector('.panel-tabs');
   if (tabsBar) tabsBar.style.display = enabled ? '' : 'none';
   if (!enabled) {
@@ -820,8 +887,18 @@ const setExperimentalEnabled = (enabled) => {
   }
 };
 
-// 设置对话框（目前只有"启用实验性功能"开关）
+const applySliderAntiMistouch = () => {
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+  const forceOn = isMobile;
+  const active = forceOn || state.sliderAntiMistouch;
+  document.body.classList.toggle('slider-anti-mistouch', active);
+};
+
+// 设置对话框
 const showSettings = () => {
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+  const sliderForcedOn = isMobile;
+
   const overlay = document.createElement('div');
   overlay.className = 'confirm-overlay is-about';
   overlay.innerHTML = `
@@ -829,11 +906,34 @@ const showSettings = () => {
       <div class="settings-title">设置</div>
       <div class="confirm-body">
         <label class="toggle toggle-sm">
+          <input type="checkbox" data-setting-load-demo>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">启动时加载示例素材</span>
+        </label>
+
+        <label class="toggle toggle-sm">
+          <input type="checkbox" data-setting-slider-anti-mistouch${sliderForcedOn ? ' disabled' : ''}>
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          <span class="toggle-label">滑块防误触</span>
+        </label>
+        <div class="setting-desc">开启后，滑块将在二级页面调整，避免触屏设备滑动时误触滑块。手机端强制开启。</div>
+
+        <div class="settings-divider"></div>
+
+        <label class="toggle toggle-sm">
           <input type="checkbox" data-setting-experimental>
           <span class="toggle-track"><span class="toggle-thumb"></span></span>
           <span class="toggle-label">启用实验性功能</span>
         </label>
         <div class="setting-desc">实验性功能为开发未完善的测试功能，可能存在大bug、卡顿和性能问题等，仅供体验。</div>
+
+        <button type="button" class="settings-action-btn" data-settings-reset>
+          <span class="settings-action-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.933 13.041a8 8 0 1 1-9.925-8.788c3.899-1 7.935 1.007 9.425 4.747"/><path d="M20 4v5h-5"/></svg>
+          </span>
+          <span class="toggle-label">初始化设置</span>
+        </button>
+        <div class="setting-desc">清除本地存储的配置。</div>
       </div>
       <div class="confirm-actions">
         <button type="button" class="btn btn-primary" data-settings-done>关闭</button>
@@ -842,11 +942,59 @@ const showSettings = () => {
   `;
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('is-visible'));
-  const toggle = overlay.querySelector('[data-setting-experimental]');
-  toggle.checked = state.experimental;
-  toggle.addEventListener('change', () => {
-    setExperimentalEnabled(toggle.checked);
+
+  const expToggle = overlay.querySelector('[data-setting-experimental]');
+  expToggle.checked = state.experimental;
+  expToggle.addEventListener('change', async () => {
+    if (expToggle.checked) {
+      const ok = await showConfirm(
+        '这些功能不在常规维护和适配范围内。开启后，可能出现大Bug 、卡顿和性能问题。是否确认开启？',
+        { title: '开启实验性功能', critical: true }
+      );
+      if (!ok) {
+        expToggle.checked = false;
+        return;
+      }
+    }
+    setExperimentalEnabled(expToggle.checked);
   });
+
+  const sliderToggle = overlay.querySelector('[data-setting-slider-anti-mistouch]');
+  sliderToggle.checked = sliderForcedOn || state.sliderAntiMistouch;
+  sliderToggle.addEventListener('change', () => {
+    state.sliderAntiMistouch = sliderToggle.checked;
+    saveSettingsToStorage();
+    applySliderAntiMistouch();
+  });
+
+  const demoToggle = overlay.querySelector('[data-setting-load-demo]');
+  demoToggle.checked = state.loadDemoOnStart;
+  demoToggle.addEventListener('change', () => {
+    state.loadDemoOnStart = demoToggle.checked;
+    saveSettingsToStorage();
+  });
+
+  const resetBtn = overlay.querySelector('[data-settings-reset]');
+  resetBtn?.addEventListener('click', async () => {
+    const ok = await showConfirm(
+      '确定要清除全部本地存储数据吗？所有设置将恢复为默认值，同时已导入的素材将被清空。',
+      { title: '初始化设置', critical: true }
+    );
+    if (!ok) return;
+    try {
+      localStorage.clear();
+    } catch (_) {}
+    state.experimental = false;
+    state.sliderAntiMistouch = false;
+    state.loadDemoOnStart = true;
+    if (typeof applySliderAntiMistouch === 'function') applySliderAntiMistouch();
+    if (typeof setExperimentalEnabled === 'function') setExperimentalEnabled(false);
+    demoToggle.checked = state.loadDemoOnStart;
+    sliderToggle.checked = state.sliderAntiMistouch;
+    expToggle.checked = state.experimental;
+    location.reload();
+  });
+
   const close = () => {
     overlay.classList.remove('is-visible');
     setTimeout(() => overlay.remove(), 300);
@@ -2202,6 +2350,8 @@ const updateControl = (control) => {
 
 // ==================== 初始化 & 事件绑定 ====================
 if (canvas && context) {
+  loadSettingsFromStorage();
+
   let pendingRender = 0;
   // 合并短时间内多次 render 调用（同一帧内只触发一次）
   const scheduleRender = () => {
@@ -2244,10 +2394,17 @@ if (canvas && context) {
     });
   }
 
-  // 移动端提示：可关闭
+  // 移动端提示横幅：关闭后持久化，不再显示
   const mobileTip = document.querySelector('[data-mobile-tip]');
   const closeBtn = mobileTip?.querySelector('[data-mobile-tip-close]');
-  closeBtn?.addEventListener('click', () => mobileTip.classList.add('hidden'));
+  const MOBILE_TIP_KEY = 'halftone-factory:v1:mobileTipClosed';
+  try {
+    if (localStorage.getItem(MOBILE_TIP_KEY) === '1') mobileTip?.classList.add('hidden');
+  } catch (_) {}
+  closeBtn?.addEventListener('click', () => {
+    mobileTip?.classList.add('hidden');
+    try { localStorage.setItem(MOBILE_TIP_KEY, '1'); } catch (_) {}
+  });
 
   // 画布交互：滚轮缩放（以鼠标位置为中心）
   canvasWrap.addEventListener('wheel', (event) => {
@@ -2404,14 +2561,17 @@ if (canvas && context) {
     });
   });
 
-  // 移动端：range 被 CSS 隐藏时，点击 slider-head 弹出浮层大滑块
+  // 移动端或开启"滑块防误触"：点击 slider-head 弹出浮层大滑块
+  const shouldUseSliderPopup = () =>
+    window.matchMedia('(max-width: 640px)').matches || state.sliderAntiMistouch;
+
   document.querySelectorAll('.slider-row').forEach((row) => {
     const nativeRange = row.querySelector('input[type="range"]');
     const head = row.querySelector('.slider-head');
     if (!nativeRange || !head) return;
 
     head.addEventListener('click', () => {
-      if (nativeRange.offsetParent !== null) return;
+      if (!shouldUseSliderPopup()) return;
 
       const label = head.querySelector('span')?.textContent || '';
 
@@ -2507,7 +2667,7 @@ if (canvas && context) {
   });
   document.querySelector('[data-menu-close]')?.addEventListener('click', closeMenu);
   document.querySelector('[data-menu-clear]')?.addEventListener('click', async () => {
-    const ok = await showConfirm('确定要清空全部素材吗？此操作不可撤销。');
+    const ok = await showConfirm('确定要清空全部素材吗？此操作不可撤销。', { title: '清空全部素材', danger: true });
     if (!ok) return;
     clearObjectUrls();
     state.sources = [];
@@ -2698,8 +2858,7 @@ if (canvas && context) {
   // 重置参数按钮
   document.querySelector('[data-reset-params]')?.addEventListener('click', async () => {
     const activeTab = document.querySelector('.panel-tab.is-active')?.dataset.panelTab || 'static';
-    const label = activeTab === 'dynamic' ? '动态' : '静态';
-    const ok = await showConfirm(`确定要重置${label}页参数吗？素材不会被清空。`);
+    const ok = await showConfirm('确定要重置本页参数吗？素材不会被清空。', { title: '重置参数', danger: true });
     if (!ok) return;
     if (activeTab === 'dynamic') resetDynamicParams();
     else resetStaticParams();
@@ -2710,6 +2869,7 @@ if (canvas && context) {
     resetView();
     invalidatePointSets();
     window.requestAnimationFrame(render);
+    applySliderAntiMistouch();
   }, { passive: true });
 
   window.hfSwitchPanelTab = switchPanelTab;
@@ -2718,6 +2878,15 @@ if (canvas && context) {
     if (tabsBar) tabsBar.style.display = 'none';
   }
 
+  applySliderAntiMistouch();
+
   // 最后：加载默认示例素材（内嵌的默认图 / 演示图）
-  void loadDemoSources();
+  if (state.loadDemoOnStart) {
+    void loadDemoSources();
+  } else {
+    setPanelDisabled(true);
+    render();
+  }
+
+  showWelcome();
 }
