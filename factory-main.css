@@ -1346,7 +1346,9 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
   font-weight: 600;
   color: var(--text-3);
   white-space: nowrap;
-  transition: background 180ms var(--ease), border-color 180ms var(--ease), color 180ms var(--ease);
+}
+.info-pill.is-hidden {
+  display: none;
 }
 
 .info-pill:has([data-caption].is-exporting) {
@@ -1385,6 +1387,9 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
   box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 8px 40px rgba(0,0,0,0.6);
   user-select: none;
   touch-action: none;
+}
+.canvas-wrap canvas.is-hidden {
+  opacity: 0;
 }
 
 .canvas-footer {

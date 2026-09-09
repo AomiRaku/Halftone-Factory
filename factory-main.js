@@ -476,6 +476,7 @@ const removeSource = (idx) => {
   if (state.sources.length === 0) {
     state.activeIndex = 0;
     state.playing = false;
+    clearCanvas();
   } else if (state.activeIndex >= state.sources.length) {
     state.activeIndex = state.sources.length - 1;
   } else if (state.activeIndex > idx) {
@@ -684,7 +685,7 @@ const showConfirm = (message) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
 });
 
-const APP_VERSION = '1.1.2-90046';
+const APP_VERSION = '1.2.1-91457';
 
 // 关于对话框
 const showAbout = () => {
@@ -1340,7 +1341,15 @@ const buildRenderSignature = (width, height, ratio) => {
 
 // ==================== 主渲染函数 ====================
 const render = () => {
-  if (!canvas || !context || state.sources.length === 0) return;
+  if (!canvas || !context) return;
+  const hasSources = state.sources.length > 0;
+  canvas.classList.toggle('is-hidden', !hasSources);
+  if (zoomLabel) zoomLabel.parentElement?.classList.toggle('is-hidden', !hasSources);
+  if (sizeLabel) sizeLabel.parentElement?.classList.toggle('is-hidden', !hasSources);
+  if (!hasSources) {
+    setCaption('导入素材来开始');
+    return;
+  }
 
   const activeSource = state.sources[state.activeIndex]?.source || state.sources[0]?.source;
   const dims = getCanvasDimensions(activeSource);
@@ -1619,6 +1628,7 @@ const loadMediaFiles = async (files) => {
   renderMenu();
   setPanelDisabled(false);
   invalidatePointSets();
+  resetView();
   render();
   if (state.playing) requestRenderLoop();
 };
@@ -2495,7 +2505,7 @@ if (canvas && context) {
     setMediaPlayback(false);
     updatePlayButton();
     renderMenu();
-    clearCanvas();
+    render();
     setPanelDisabled(true);
     closeMenu();
   });
