@@ -1566,7 +1566,16 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
 }
 
 @media (max-width: 640px) {
-  body { overflow: hidden; }
+  html, body {
+    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-root {
+    height: 100dvh;
+    zoom: 1;
+  }
 
   .mobile-tip { display: flex; }
 
