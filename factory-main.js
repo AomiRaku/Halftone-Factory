@@ -25,6 +25,7 @@ const transitionButtons = Array.from(document.querySelectorAll('[data-transition
 const pathButtons = Array.from(document.querySelectorAll('[data-path]'));
 const canvasBaseButtons = Array.from(document.querySelectorAll('[data-canvas-base]'));
 const controls = Array.from(document.querySelectorAll('[data-control]'));
+const panelToggle = document.querySelector('[data-panel-toggle]');
 
 // 滑块刻度线位置计算（CSS 变量 --tick-pct）
 document.querySelectorAll('input[type="range"]').forEach((input) => {
@@ -2199,6 +2200,35 @@ if (canvas && context) {
 
   const canvasWrap = canvas.parentElement;
 
+  // 面板折叠切换（html.panel-collapsed 由 CSS 处理宽/高折叠）
+  if (panelToggle) {
+    const isMobile = () => window.matchMedia('(max-width: 640px)').matches;
+    panelToggle.addEventListener('click', () => {
+      document.documentElement.classList.toggle('panel-collapsed');
+      // 桌面端：不重置，保持画布原位置和缩放
+      // 移动端：等 CSS 过渡结束后再 resetView，确保 clientWidth 是最终值
+      if (isMobile()) {
+        const panel = document.querySelector('.control-panel');
+        const handler = (e) => {
+          if (e.propertyName === 'transform' || e.propertyName === 'margin-left') {
+            panel.removeEventListener('transitionend', handler);
+            resetView();
+          }
+        };
+        panel.addEventListener('transitionend', handler);
+        setTimeout(() => {
+          panel.removeEventListener('transitionend', handler);
+          resetView();
+        }, 300);
+      }
+    });
+  }
+
+  // 移动端提示：可关闭
+  const mobileTip = document.querySelector('[data-mobile-tip]');
+  const closeBtn = mobileTip?.querySelector('[data-mobile-tip-close]');
+  closeBtn?.addEventListener('click', () => mobileTip.classList.add('hidden'));
+
   // 画布交互：滚轮缩放（以鼠标位置为中心）
   canvasWrap.addEventListener('wheel', (event) => {
     event.preventDefault();
@@ -2218,39 +2248,109 @@ if (canvas && context) {
     applyView();
   }, { passive: false });
 
-  // 画布交互：指针拖拽平移
-  let panning = false;
-  let panStartX = 0;
-  let panStartY = 0;
-  let panOrigX = 0;
-  let panOrigY = 0;
+  // 画布交互：指针拖拽平移 / 双指捏合缩放
+  // 用 Map 追踪所有活动指针（支持触屏多指）
+  const pointers = new Map();
+  let gestureMode = null; // 'pan' | 'pinch' | null
+
+  // 捏合手势的起始基准（用于按比例缩放且保持捏合中心位置不变）
+  let pinchStartDist = 0;
+  let pinchStartScale = 1;
+  let pinchStartMidX = 0;
+  let pinchStartMidY = 0;
+  let pinchStartViewX = 0;
+  let pinchStartViewY = 0;
 
   canvasWrap.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0) return;
-    panning = true;
-    panStartX = event.clientX;
-    panStartY = event.clientY;
-    panOrigX = state.viewX;
-    panOrigY = state.viewY;
     canvasWrap.setPointerCapture(event.pointerId);
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     canvasWrap.style.cursor = 'grabbing';
   });
 
   canvasWrap.addEventListener('pointermove', (event) => {
-    if (!panning) return;
-    state.viewX = panOrigX + (event.clientX - panStartX);
-    state.viewY = panOrigY + (event.clientY - panStartY);
-    applyView();
+    if (!pointers.has(event.pointerId)) return;
+
+    const prev = pointers.get(event.pointerId);
+    prev.x = event.clientX;
+    prev.y = event.clientY;
+
+    if (pointers.size === 1) {
+      // 单指模式：超过 3px 阈值后视为平移（避免与点击冲突）
+      const [p] = pointers.values();
+      if (gestureMode !== 'pan') {
+        gestureMode = 'pan';
+        p._panStartX = event.clientX;
+        p._panStartY = event.clientY;
+        p._panMoved = false;
+      }
+      if (!p._panMoved) {
+        const dx = event.clientX - p._panStartX;
+        const dy = event.clientY - p._panStartY;
+        if (Math.abs(dx) + Math.abs(dy) > 3) {
+          p._panMoved = true;
+          p._panPrevX = event.clientX;
+          p._panPrevY = event.clientY;
+        }
+      } else {
+        state.viewX += event.clientX - (p._panPrevX ?? event.clientX);
+        state.viewY += event.clientY - (p._panPrevY ?? event.clientY);
+        p._panPrevX = event.clientX;
+        p._panPrevY = event.clientY;
+        applyView();
+      }
+    } else if (pointers.size === 2) {
+      // 双指模式：捏合缩放（以两指中点为锚点）
+      const rect = canvasWrap.getBoundingClientRect();
+      const pts = [...pointers.values()];
+      const dx = pts[0].x - pts[1].x;
+      const dy = pts[0].y - pts[1].y;
+      const dist = Math.hypot(dx, dy);
+      const midX = (pts[0].x + pts[1].x) / 2 - rect.left;
+      const midY = (pts[0].y + pts[1].y) / 2 - rect.top;
+
+      if (gestureMode !== 'pinch') {
+        // 进入捏合：记录当前两指距离、中心点和视口作为基准
+        gestureMode = 'pinch';
+        pinchStartDist = dist;
+        pinchStartScale = state.viewScale;
+        pinchStartMidX = midX;
+        pinchStartMidY = midY;
+        pinchStartViewX = state.viewX;
+        pinchStartViewY = state.viewY;
+      } else {
+        // 捏合中：按距离比例缩放，保持起始中心点不变
+        const ratio = pinchStartDist > 0 ? dist / pinchStartDist : 1;
+        const newScale = clamp(pinchStartScale * ratio, 0.1, 6);
+        const localX = (pinchStartMidX - pinchStartViewX) / pinchStartScale;
+        const localY = (pinchStartMidY - pinchStartViewY) / pinchStartScale;
+        state.viewScale = newScale;
+        state.viewX = midX - localX * newScale;
+        state.viewY = midY - localY * newScale;
+        applyView();
+      }
+    }
   });
 
-  const endPan = (event) => {
-    if (event && panning) canvasWrap.releasePointerCapture?.(event.pointerId);
-    panning = false;
-    canvasWrap.style.cursor = '';
+  const endPointer = (event) => {
+    pointers.delete(event.pointerId);
+    if (pointers.size === 0) {
+      gestureMode = null;
+      canvasWrap.style.cursor = '';
+    } else if (pointers.size === 1) {
+      // 双指松手变单指：重置为平移起点，避免跳变
+      const [p] = pointers.values();
+      gestureMode = null;
+      p._panStartX = p.x;
+      p._panStartY = p.y;
+      p._panMoved = false;
+      p._panPrevX = p.x;
+      p._panPrevY = p.y;
+    }
   };
 
-  canvasWrap.addEventListener('pointerup', endPan);
-  canvasWrap.addEventListener('pointercancel', endPan);
+  canvasWrap.addEventListener('pointerup', endPointer);
+  canvasWrap.addEventListener('pointercancel', endPointer);
+  canvasWrap.addEventListener('pointerleave', endPointer);
 
   // 画布交互：双击 / Ctrl+0 重置视图
   canvasWrap.addEventListener('dblclick', () => {
