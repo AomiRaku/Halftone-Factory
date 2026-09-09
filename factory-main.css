@@ -47,6 +47,7 @@ html, body {
 body {
   min-height: 100dvh;
   overflow: hidden;
+  zoom: 1.1;
 }
 
 button, input { font: inherit; }
@@ -59,7 +60,7 @@ button:focus-visible, input:focus-visible {
 .app-root {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: calc(100dvh / 1.1);
   min-height: 0;
 }
 

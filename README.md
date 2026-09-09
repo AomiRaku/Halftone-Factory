@@ -26,7 +26,7 @@ Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku)
 
 #### 方法 2 ：下载源码到本地解压，直接用浏览器打开 `index.html` 。
 
-#### 方法 3 ：在本地启动静态服务器：
+#### 方法 3 ：下载源码到本地解压，在项目根目录本地启动静态服务器：
 
 ```bash
 python3 -m http.server 6702

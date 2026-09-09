@@ -1,3 +1,4 @@
+// ==================== DOM 引用 ====================
 const canvas = document.querySelector('[data-canvas]');
 const caption = document.querySelector('[data-caption]');
 const zoomLabel = document.querySelector('[data-zoom-label]');
@@ -24,6 +25,8 @@ const transitionButtons = Array.from(document.querySelectorAll('[data-transition
 const pathButtons = Array.from(document.querySelectorAll('[data-path]'));
 const canvasBaseButtons = Array.from(document.querySelectorAll('[data-canvas-base]'));
 const controls = Array.from(document.querySelectorAll('[data-control]'));
+
+// 滑块刻度线位置计算（CSS 变量 --tick-pct）
 document.querySelectorAll('input[type="range"]').forEach((input) => {
   const min = +input.min || 0;
   const max = +input.max || 100;
@@ -31,6 +34,8 @@ document.querySelectorAll('input[type="range"]').forEach((input) => {
   const pct = (def - min) / (max - min) * 100;
   input.style.setProperty('--tick-pct', pct.toFixed(2) + '%');
 });
+
+// 输出数值显示元素集合
 const outputs = {
   step: document.querySelector('[data-output="step"]'),
   scale: document.querySelector('[data-output="scale"]'),
@@ -48,11 +53,16 @@ const outputs = {
   canvasRes: document.querySelector('[data-output="canvasRes"]')
 };
 
+// ==================== 全局状态 ====================
+// 所有参数集中在此对象，涵盖形状、色彩、画布、采样、动态、素材、视图等
 const state = {
+  // --- 形状与色彩 ---
   shape: 'dot',
   colorMode: 'pure',
+  // --- 动态转场参数 ---
   transition: 'dissolve',
   pathStyle: 'radial',
+  // --- 点阵采样参数 ---
   step: 11,
   scale: 1,
   sizeWeight: 1,
@@ -62,22 +72,27 @@ const state = {
   contrast: 1.2,
   detail: 0.5,
   highlightDetail: 0.5,
+  // --- 动态时间参数 ---
   duration: 1.7,
   blank: 0.24,
   hold: 0.55,
   drift: 0.08,
+  // --- 颜色值 ---
   ink: '#7c4c09',
   paper: '#f7f3ec',
   shadowInk: '#23322d',
   midInk: '#2fb69a',
   highlightInk: '#e7e4d8',
+  // --- 渲染开关 ---
   transparent: false,
   texture: false,
   invert: false,
   morph: false,
   allowTransparency: false,
+  // --- 素材 ---
   sources: [],
   activeIndex: 0,
+  // --- 动画播放 ---
   playing: false,
   animationStart: performance.now(),
   pausedAt: 0,
@@ -86,19 +101,33 @@ const state = {
   pointSetSignature: '',
   objectUrls: [],
   exportStatus: '',
+  // --- 画布视图（缩放/平移） ---
   viewScale: 1,
   viewX: 0,
   viewY: 0,
   viewResetToken: 0,
   vectorZoom: false,
+  // --- 画布尺寸 ---
   canvasBase: 'width',
   canvasRes: 1000,
   canvasPadding: false,
+  // --- 功能开关 ---
   experimental: false
 };
 
+// ==================== 常量 ====================
 const CANVAS_PADDING = 50;
+const EXPORT_WEBM_FPS = 30;
+const EXPORT_MAX_MS = 10000;
+const EXPORT_GIF_FPS = 12;
 
+// 导出外部库 CDN 地址（动态加载）
+const GIF_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js';
+const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
+const GIFLER_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/gifler@0.1.0/gifler.min.js';
+
+// ==================== 画布尺寸计算 ====================
+// 根据基准分辨率和素材宽高比，计算最终画布的宽高及偏移量（支持留白边距）
 const getCanvasDimensions = (source) => {
   if (!source) return { width: 1000, height: 1000, contentW: 1000, contentH: 1000, offsetX: 0, offsetY: 0 };
   const srcW = getSourceWidth(source);
@@ -125,17 +154,17 @@ const getCanvasDimensions = (source) => {
   return { width: contentW, height: contentH, contentW, contentH, offsetX: 0, offsetY: 0 };
 };
 
+// ==================== 画布与渲染缓存 ====================
+// 采样用的离屏 canvas（读取源图像像素）
 const sampleCanvas = document.createElement('canvas');
 const sampleContext = sampleCanvas.getContext('2d', { willReadFrequently: true });
 const context = canvas ? canvas.getContext('2d') : null;
+// 渲染缓存：参数未变且非动画时，直接贴回上次结果
 const renderCache = { canvas: null, ctx: null, signature: '', width: 0, height: 0, ratio: 0 };
 const downloadSvgButton = document.querySelector('[data-download-svg]');
-const GIF_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js';
-const GIF_WORKER_URL = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js';
-const GIFLER_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/gifler@0.1.0/gifler.min.js';
-const EXPORT_MAX_MS = 10000;
-const EXPORT_GIF_FPS = 12;
 
+// ==================== 颜色面板可用性 ====================
+// 根据当前色彩模式，禁用/启用对应的颜色选择器
 const updateSwatchAvailability = () => {
   document.querySelectorAll('.swatch-item').forEach((item) => {
     const input = item.querySelector('input[type="color"]');
@@ -155,21 +184,23 @@ const updateSwatchAvailability = () => {
     input.tabIndex = allowed ? 0 : -1;
   });
 };
-const EXPORT_WEBM_FPS = 30;
 
-let gifEncoderLoader = null;
-let gifWorkerScriptUrl = '';
-let giflerLoader = null;
-let mediaStage = null;
-let webmAbort = false;
-let gifAbort = false;
+// ==================== 外部库加载状态 ====================
+let gifEncoderLoader = null;   // gif.js 加载 Promise
+let gifWorkerScriptUrl = '';   // gif worker 的 Blob URL
+let giflerLoader = null;       // gifler 加载 Promise
+let mediaStage = null;         // 隐藏 DOM 容器，放 video/gif canvas
+let webmAbort = false;         // WebM 导出取消标志
+let gifAbort = false;          // GIF 导出取消标志
 
+// ==================== 通用工具函数 ====================
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const lerp = (from, to, amount) => from + (to - from) * amount;
 const getSourceWidth = (source) => source.naturalWidth || source.videoWidth || source.width || 1;
 const getSourceHeight = (source) => source.naturalHeight || source.videoHeight || source.height || 1;
 const wait = (duration) => new Promise((resolve) => window.setTimeout(resolve, duration));
 
+// ==================== 颜色工具 ====================
 const hexToRgb = (hex) => {
   const clean = hex.replace('#', '');
   const value = Number.parseInt(clean.length === 3
@@ -188,7 +219,6 @@ const rgbToHex = ({ r, g, b }) => {
     const hex = clamp(Math.round(value), 0, 255).toString(16);
     return hex.length === 1 ? `0${hex}` : hex;
   };
-
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 };
 
@@ -199,6 +229,7 @@ const mixRgb = (from, to, amount) => ({
   b: mixChannel(from.b, to.b, amount)
 });
 
+// 原彩模式：对源色做饱和度 + 对比增强
 const gradeSourceColour = (point) => {
   const average = (point.red + point.green + point.blue) * 0.3333333333;
   const saturation = 1.24;
@@ -210,12 +241,14 @@ const gradeSourceColour = (point) => {
   return { r, g, b };
 };
 
+// 渐变模式：按亮度分三段（shadow → mid → highlight）线性插值
 const getGradientColour = (point, shadowRgb, midRgb, highlightRgb) => {
   const tone = clamp(point.luminance, 0, 1);
   if (tone < 0.54) return mixRgb(shadowRgb, midRgb, tone / 0.54);
   return mixRgb(midRgb, highlightRgb, (tone - 0.54) / 0.46);
 };
 
+// rgb() 字符串缓存，减少 fillStyle/strokeStyle 设置时的 GC 压力
 const rgbStringCache = new Map();
 const rgbToStr = (colour) => {
   const key = `${colour.r}|${colour.g}|${colour.b}`;
@@ -227,6 +260,7 @@ const rgbToStr = (colour) => {
   return s;
 };
 
+// 核心：根据色彩模式 + 点的亮度/颜色信息，算出该点的最终墨色
 const getMarkColour = (point, paper, ink, strength, colourCtx) => {
   if (state.colorMode === 'pure') return ink;
   const mixStrength = clamp(0.24 + strength * 0.76, 0, 1);
@@ -249,6 +283,8 @@ const buildColourCtx = () => ({
   highlightRgb: hexToRgb(state.highlightInk)
 });
 
+// ==================== 背景纹理 ====================
+// 在画布上绘制旋转的网格线 + 网格交点，营造印刷纹理感
 const paintBackgroundTexture = (width, height) => {
   if (state.transparent || !state.texture) return;
 
@@ -293,6 +329,8 @@ const paintBackgroundTexture = (width, height) => {
 
   context.restore();
 };
+
+// ==================== 动态素材检测与媒体控制 ====================
 const isDynamicSource = (item) => item?.dynamic === true;
 const hasDynamicSource = () => state.sources.some(isDynamicSource);
 
@@ -308,6 +346,7 @@ const setMediaPlayback = (playing) => {
   });
 };
 
+// 离屏 DOM 容器：用于挂载 video / gif canvas（1px 大，不可见）
 const ensureMediaStage = () => {
   if (mediaStage || !document.body) return mediaStage;
 
@@ -347,6 +386,7 @@ const clearObjectUrls = () => {
   if (mediaStage) mediaStage.replaceChildren();
 };
 
+// ==================== 默认 Demo 素材 ====================
 const DEMO_SOURCES = [
   { name: '蓝色大肥鱼.webp', src: 'assets/demo/DS.webp' }
 ];
@@ -383,6 +423,8 @@ const loadDemoSources = async () => {
   }
 };
 
+// ==================== UI 同步 ====================
+// 将 state 中各参数值实时显示到面板上的数值标签
 const updateOutputs = () => {
   if (outputs.step) outputs.step.textContent = String(23 - state.step);
   if (outputs.scale) outputs.scale.textContent = state.scale.toFixed(2);
@@ -400,11 +442,13 @@ const updateOutputs = () => {
   if (outputs.canvasRes) outputs.canvasRes.textContent = String(state.canvasRes);
 };
 
+// 是否满足动画播放条件（多图 morph 或包含视频/GIF）
 const isPlayable = () => {
   return (state.morph && state.sources.length > 1)
     || hasDynamicSource();
 };
 
+// 更新播放按钮的可见性 + 图标
 const updatePlayButton = () => {
   if (!playButton) return;
   const show = isPlayable();
@@ -420,6 +464,7 @@ const updatePlayButton = () => {
   playButton.classList.toggle('playing', state.playing);
 };
 
+// ==================== 素材管理 ====================
 const removeSource = (idx) => {
   if (idx < 0 || idx >= state.sources.length) return;
   const removed = state.sources.splice(idx, 1)[0];
@@ -447,6 +492,7 @@ const removeSource = (idx) => {
   render();
 };
 
+// 素材列表弹层渲染（含缩略图、拖拽排序、删除按钮）
 const renderMenu = () => {
   if (!menuList || !menuCount) return;
   const count = state.sources.length;
@@ -571,6 +617,7 @@ const renderMenu = () => {
   });
 };
 
+// ==================== 弹层控制 ====================
 const openMenu = () => {
   if (!menuPopover || !menuToggle) return;
   renderMenu();
@@ -615,6 +662,7 @@ const setPanelDisabled = (disabled) => {
   }
 };
 
+// 通用确认对话框（Promise 风格，点击确定 resolve true，取消 resolve false）
 const showConfirm = (message) => new Promise((resolve) => {
   const overlay = document.createElement('div');
   overlay.className = 'confirm-overlay';
@@ -642,6 +690,7 @@ const showConfirm = (message) => new Promise((resolve) => {
 
 const APP_VERSION = '1.1.2-90046';
 
+// 关于对话框
 const showAbout = () => {
   const overlay = document.createElement('div');
   overlay.className = 'confirm-overlay is-about';
@@ -678,6 +727,7 @@ const showAbout = () => {
   document.addEventListener('keydown', onKey);
 };
 
+// ==================== 参数重置 ====================
 const resetStaticParams = () => {
   state.shape = 'dot';
   state.colorMode = 'pure';
@@ -721,6 +771,7 @@ const resetDynamicParams = () => {
   window._scheduleRender?.();
 };
 
+// ==================== 面板 Tab 切换（静态 / 动态） ====================
 let _panelTabs = null;
 let _panelSections = null;
 let _panelNotice = null;
@@ -757,6 +808,7 @@ const setExperimentalEnabled = (enabled) => {
   }
 };
 
+// 设置对话框（目前只有"启用实验性功能"开关）
 const showSettings = () => {
   const overlay = document.createElement('div');
   overlay.className = 'confirm-overlay is-about';
@@ -792,11 +844,14 @@ const showSettings = () => {
   document.addEventListener('keydown', onKey);
 };
 
+// ==================== 画布清空 ====================
 const clearCanvas = () => {
   if (!canvas || !context) return;
   context.clearRect(0, 0, canvas.width, canvas.height);
 };
 
+// ==================== 图像适配 ====================
+// 按 contain 策略计算 source 在目标矩形中的位置和尺寸（居中）
 const getFit = (source, width, height) => {
   const sourceRatio = getSourceWidth(source) / getSourceHeight(source);
   const targetRatio = width / height;
@@ -811,6 +866,8 @@ const getFit = (source, width, height) => {
   };
 };
 
+// ==================== 点集签名 ====================
+// 用于检测参数是否变化：相同签名时可复用上一次的点集，避免重算
 const getPointSetSignature = (width, height, offsetX = 0, offsetY = 0) => [
   width,
   height,
@@ -826,6 +883,7 @@ const getPointSetSignature = (width, height, offsetX = 0, offsetY = 0) => [
   state.sources.map((item) => item.name).join('|')
 ].join(':');
 
+// 根据 pathStyle 给每个点分配 order 值，用于排序（决定转场动画的空间渐变方向）
 const getPointOrder = ({ x, y, column, row, width, height, centerX, centerY }) => {
   const normalizedX = x / Math.max(1, width);
   const normalizedY = y / Math.max(1, height);
@@ -840,6 +898,8 @@ const getPointOrder = ({ x, y, column, row, width, height, centerX, centerY }) =
   return Math.round(radius * 260) * 10000 + Math.round((angle + Math.PI) * 1000);
 };
 
+// ==================== 半调核心：构建点集 ====================
+// 降采样 → 读取像素亮度 → 计算强度（含阈值/对比/暗部/亮部细节曲线） → 旋转 → 排序
 const buildPointSet = (source, width, height, offsetX = 0, offsetY = 0) => {
   const step = state.step;
   const columns = Math.ceil(width / step);
@@ -848,6 +908,7 @@ const buildPointSet = (source, width, height, offsetX = 0, offsetY = 0) => {
   const centerY = height * 0.5;
   const points = [];
 
+  // 1) 将源图像缩放到 columns×rows 采样网格
   sampleCanvas.width = columns;
   sampleCanvas.height = rows;
   sampleContext.clearRect(0, 0, columns, rows);
@@ -857,17 +918,21 @@ const buildPointSet = (source, width, height, offsetX = 0, offsetY = 0) => {
   const fit = getFit(source, columns, rows);
   sampleContext.drawImage(source, fit.x, fit.y, fit.width, fit.height);
 
+  // 2) 读取所有采样点的像素值
   const pixels = sampleContext.getImageData(0, 0, columns, rows).data;
 
+  // 3) 预计算旋转三角函数（整体网格旋转）
   const rotRad = state.rotation * Math.PI / 180;
   const cosR = Math.cos(rotRad);
   const sinR = Math.sin(rotRad);
 
+  // 4) 遍历每个网格格点
   for (let row = -1; row <= rows; row += 1) {
     for (let column = -1; column <= columns; column += 1) {
       const gx = column * step + step * 0.5;
       const gy = row * step + step * 0.5;
 
+      // 旋转坐标变换
       let ox = gx;
       let oy = gy;
       if (state.rotation) {
@@ -877,6 +942,7 @@ const buildPointSet = (source, width, height, offsetX = 0, offsetY = 0) => {
         oy = dx * sinR + dy * cosR + centerY;
       }
 
+      // 采样原图像素
       const sc = Math.max(0, Math.min(columns - 1, Math.round(ox / step)));
       const sr = Math.max(0, Math.min(rows - 1, Math.round(oy / step)));
 
@@ -887,8 +953,11 @@ const buildPointSet = (source, width, height, offsetX = 0, offsetY = 0) => {
       const red = pixels[index];
       const green = pixels[index + 1];
       const blue = pixels[index + 2];
+      // BT.709 标准亮度公式
       const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
       const tone = state.invert ? luminance : 1 - luminance;
+
+      // 强度曲线：阈值 + 对比 + 暗部细节 + 亮部细节（knee point 在 0.5）
       const softThreshold = state.threshold * (1 - state.detail);
       const rawStrength = (tone - softThreshold) * state.contrast + softThreshold;
       const knee = 0.5;
@@ -917,12 +986,14 @@ const buildPointSet = (source, width, height, offsetX = 0, offsetY = 0) => {
     }
   }
 
+  // 5) 按 order 排序，并给每个点分配 phase（0~1 的空间进度，用于 path 转场）
   return points.sort((a, b) => a.order - b.order).map((point, index, list) => ({
     ...point,
     phase: list.length <= 1 ? 0 : index / (list.length - 1)
   }));
 };
 
+// 构建当前所有素材的点集（动态素材每帧重建，静态素材签名缓存）
 const rebuildPointSets = (width, height, offsetX = 0, offsetY = 0) => {
   const signature = getPointSetSignature(width, height, offsetX, offsetY);
   if (hasDynamicSource()) {
@@ -940,11 +1011,14 @@ const invalidatePointSets = () => {
   state.pointSetSignature = '';
 };
 
+// 三次缓动
 const easeInOut = (value) => {
   const t = clamp(value, 0, 1);
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
 };
 
+// ==================== 动态转场状态机 ====================
+// 根据当前时间戳计算：fromIndex / toIndex / progress(0~1) / phase(hold/fadeOut/blank/fadeIn/path)
 const getMorphState = (timestamp) => {
   const count = state.sources.length;
   if (!state.morph || count < 2) return { fromIndex: state.activeIndex, toIndex: state.activeIndex, progress: 0, phase: 'still' };
@@ -953,6 +1027,8 @@ const getMorphState = (timestamp) => {
   const hold = Math.max(0, state.hold * 1000);
   const blank = Math.max(0, state.blank * 1000);
   const isDissolve = state.transition === 'dissolve';
+  // dissolve 段: hold → fadeOut → blank → fadeIn
+  // path 段: hold → path-morph
   const segment = isDissolve ? hold + duration + blank + duration : duration + hold;
   const elapsed = Math.max(0, timestamp - state.animationStart);
   const segmentIndex = Math.floor(elapsed / segment);
@@ -988,6 +1064,9 @@ const getMorphState = (timestamp) => {
   };
 };
 
+// ==================== 绘制点集 ====================
+// 性能关键：使用 Path2D + batches 分桶，相同颜色/透明度/线宽的点聚合到同一个 Path2D，一次 fill/stroke
+// CHUNK=20000：单个 Path2D 过大时拆分成多个，避免浏览器卡顿
 const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = false, colourCtx) => {
   const baseRadius = state.step * 0.5 * state.scale;
   const driftAmount = moving ? state.drift : 0;
@@ -1002,6 +1081,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
   const pureMode = state.colorMode === 'pure';
   let preQR = 0, preQG = 0, preQB = 0, preFillStr = '';
 
+  // 纯单色模式下颜色固定，提前量化避免每个点重复计算
   if (pureMode) {
     preQR = (ink.r >> 5) * 32;
     preQG = (ink.g >> 5) * 32;
@@ -1019,6 +1099,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
     let x = point.x;
     let y = point.y;
 
+    // drift 漂移：动态播放时给静止点加正弦扰动，营造呼吸感
     if (driftAmount) {
       const tick = timestamp;
       const seed = point.seed;
@@ -1026,6 +1107,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
       y += driftAmount * state.step * 0.45 * Math.cos(tick * 0.0027 + seed * 1.7);
     }
 
+    // 颜色量化：RGB 各右移 5 位再乘 32，量化到 32 级
     let fillStr, QR, QG, QB;
     if (pureMode) {
       fillStr = preFillStr;
@@ -1043,6 +1125,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
       : 1;
     const alphaBucket = Math.round(alpha * 20) / 20;
 
+    // 构造 batch key：颜色 + alpha + (线形额外)线宽
     let batchKey;
     let extra = 0;
     if (shape !== 'dot' && shape !== 'square') {
@@ -1064,6 +1147,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
     const path = batch.paths[batch.paths.length - 1];
     batch.count++;
 
+    // 根据形状向 Path2D 添加路径
     if (shape === 'dot') {
       path.moveTo(x + radius, y);
       path.arc(x, y, radius, 0, Math.PI * 2);
@@ -1121,6 +1205,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
     }
   }
 
+  // 按 batch 批量绘制
   for (const batch of batches.values()) {
     context.fillStyle = batch.fillStr;
     context.strokeStyle = batch.fillStr;
@@ -1137,6 +1222,7 @@ const drawPointSet = (points, paper, ink, timestamp, visibility = 1, moving = fa
   }
 };
 
+// dissolve 消隐转场：两图之间做淡出→空白→淡入
 const drawDissolve = (morph, paper, ink, timestamp, colourCtx) => {
   const fromPoints = state.pointSets[morph.fromIndex] || [];
   const toPoints = state.pointSets[morph.toIndex] || [];
@@ -1151,6 +1237,7 @@ const drawDissolve = (morph, paper, ink, timestamp, colourCtx) => {
   drawPointSet(fromPoints, paper, ink, timestamp, visibility, false, colourCtx);
 };
 
+// path 重组转场：点按 phase（空间顺序）依次从 A 图位置滑到 B 图位置
 const drawMorph = (morph, paper, ink, timestamp, colourCtx) => {
   const fromPoints = state.pointSets[morph.fromIndex] || [];
   const toPoints = state.pointSets[morph.toIndex] || [];
@@ -1158,11 +1245,13 @@ const drawMorph = (morph, paper, ink, timestamp, colourCtx) => {
   const stagger = state.pathStyle === 'random' ? 0.5 : 0.38;
   const morphed = new Array(count);
 
+  // 逐点插值：位置/强度/颜色 全 lerp，加一点 arc 弧线路径 + drift 扰动
   for (let index = 0; index < count; index += 1) {
     const fallback = toPoints[index] || fromPoints[index] || { x: 0, y: 0, strength: 0, seed: index * 0.017 };
     const from = fromPoints[index] || { ...fallback, strength: 0 };
     const to = toPoints[index] || { ...fallback, strength: 0 };
     const phase = from.phase ?? to.phase ?? (count <= 1 ? 0 : index / (count - 1));
+    // 每个点按 phase 错开启动，产生空间渐变效果
     const localProgress = easeInOut(clamp((morph.progress - phase * stagger) / (1 - stagger), 0, 1));
     const arc = Math.sin(localProgress * Math.PI) * state.step * state.drift;
     const seed = from.seed || to.seed || index * 0.017;
@@ -1183,6 +1272,7 @@ const drawMorph = (morph, paper, ink, timestamp, colourCtx) => {
   drawPointSet(morphed, paper, ink, timestamp, 1, false, colourCtx);
 };
 
+// ==================== 视图控制 ====================
 const applyView = () => {
   if (!canvas) return;
   canvas.style.transformOrigin = '0 0';
@@ -1200,6 +1290,7 @@ const updateStatusbar = () => {
   if (sizeLabel && canvas) sizeLabel.textContent = `${canvas.offsetWidth} × ${canvas.offsetHeight}px`;
 };
 
+// 自动 fit 到画布容器中（首次加载 / 窗口 resize 后调用）
 const resetView = () => {
   state.viewScale = 1;
   state.viewX = 0;
@@ -1219,6 +1310,7 @@ const resetView = () => {
   applyView();
 };
 
+// 渲染签名：决定是否需要重新绘制（命中缓存则直接贴回）
 const buildRenderSignature = (width, height, ratio) => {
   const morph = state.morph && state.sources.length > 1;
   return [
@@ -1234,6 +1326,7 @@ const buildRenderSignature = (width, height, ratio) => {
   ].join(':');
 };
 
+// ==================== 主渲染函数 ====================
 const render = () => {
   if (!canvas || !context || state.sources.length === 0) return;
 
@@ -1270,6 +1363,7 @@ const render = () => {
   );
   const sig = buildRenderSignature(width, height, ratio);
 
+  // 静态画面命中缓存：直接把 renderCache.canvas 贴回，省去重算
   if (!isAnimated && renderCache.signature === sig) {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, deviceWidth, deviceHeight);
@@ -1294,17 +1388,21 @@ const render = () => {
   const ink = hexToRgb(state.ink);
   const colourCtx = buildColourCtx();
 
+  // 1) 纸色背景
   if (!state.transparent) {
     context.fillStyle = state.paper;
     context.fillRect(0, 0, width, height);
   }
 
+  // 2) 可选网格纹理
   paintBackgroundTexture(width, height);
 
+  // 3) 构建点集（签名缓存 / 动态每帧重建）
   context.lineCap = 'round';
   context.lineJoin = 'round';
   rebuildPointSets(dims.contentW, dims.contentH, dims.offsetX, dims.offsetY);
 
+  // 4) 绘制：三种模式 —— dissolve / path morph / 单点集
   const morph = getMorphState(timestamp);
   if (state.morph && state.sources.length > 1 && state.transition === 'dissolve') {
     drawDissolve(morph, paper, ink, timestamp, colourCtx);
@@ -1316,6 +1414,7 @@ const render = () => {
 
   context.globalAlpha = 1;
 
+  // 5) 写入渲染缓存
   context.setTransform(1, 0, 0, 1, 0, 0);
   if (!renderCache.canvas || renderCache.canvas.width !== deviceWidth || renderCache.canvas.height !== deviceHeight) {
     renderCache.canvas = document.createElement('canvas');
@@ -1349,6 +1448,8 @@ const render = () => {
   }
 };
 
+// ==================== 渲染循环 ====================
+// 仅 drift（静止点呼吸动效）时跳帧优化，每 3 帧才真正渲染一次，降低 CPU 占用
 let _renderFrameSkip = 0;
 const requestRenderLoop = () => {
   if (state.frameId) return;
@@ -1371,10 +1472,13 @@ const requestRenderLoop = () => {
   state.frameId = window.requestAnimationFrame(tick);
 };
 
+// ==================== 文件类型判断 ====================
 const isGifFile = (file) => file?.type === 'image/gif' || file?.name?.toLowerCase().endsWith('.gif');
 const isImageFile = (file) => file?.type.startsWith('image/') || /\.(gif|png|jpe?g|webp|avif)$/i.test(file?.name || '');
 const isVideoFile = (file) => file?.type.startsWith('video/') || /\.(mp4|webm|mov|m4v)$/i.test(file?.name || '');
 
+// ==================== GIF 加载 ====================
+// 动态从 CDN 加载 gifler 库，解析 GIF 每一帧并在内部 canvas 上播放
 const loadGifler = () => {
   if (window.gifler) return Promise.resolve(window.gifler);
   if (giflerLoader) return giflerLoader;
@@ -1423,6 +1527,7 @@ const loadGifFile = (file) => new Promise((resolve) => {
     .catch(() => resolve(null));
 });
 
+// 静态图片加载
 const loadImageFile = (file) => new Promise((resolve) => {
   if (!file || !isImageFile(file)) {
     resolve(null);
@@ -1446,6 +1551,7 @@ const loadImageFile = (file) => new Promise((resolve) => {
   image.src = url;
 });
 
+// 视频加载：自动静音循环播放，后续在每帧中被采样
 const loadVideoFile = (file) => new Promise((resolve) => {
   if (!file || !isVideoFile(file)) {
     resolve(null);
@@ -1475,12 +1581,14 @@ const loadVideoFile = (file) => new Promise((resolve) => {
   video.addEventListener('error', () => resolve(null), { once: true });
 });
 
+// 单文件分发：根据类型调用对应加载器
 const loadMediaFile = (file) => {
   if (isVideoFile(file)) return loadVideoFile(file);
   if (isGifFile(file)) return loadGifFile(file);
   return loadImageFile(file);
 };
 
+// 批量加载：把多文件并发读入，塞入 state.sources，自动开始动画
 const loadMediaFiles = async (files) => {
   const mediaFiles = Array.from(files || [])
     .filter((file) => isImageFile(file) || isVideoFile(file));
@@ -1503,8 +1611,10 @@ const loadMediaFiles = async (files) => {
   if (state.playing) requestRenderLoop();
 };
 
+// ==================== UI 辅助 ====================
 const EXPORT_HIGHLIGHT_KEYWORDS = ['GIF', 'WebM', '录制', '编码', '采样'];
 
+// 底部 caption：显示素材名/粒子数/当前导出状态
 const setCaption = (message) => {
   if (!caption) return;
   caption.textContent = message;
@@ -1527,6 +1637,7 @@ const clearExportStatusSoon = (message = '') => {
   }, 1400);
 };
 
+// 按钮 busy 状态：导出过程中锁住按钮并更换文字
 const setButtonBusy = (button, busy, label = '') => {
   if (!button) return;
   const main = button.querySelector('.btn-main');
@@ -1544,12 +1655,14 @@ const setButtonBusy = (button, busy, label = '') => {
   }
 };
 
+// 导出文件名：取当前素材名去掉扩展名
 const getExportBaseName = () => {
   const src = state.sources[state.activeIndex];
   const name = src?.name || 'halftone';
   return name.replace(/\.[^.]+$/, '');
 };
 
+// 触发下载 Blob
 const downloadBlob = (blob, filename) => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -1559,6 +1672,8 @@ const downloadBlob = (blob, filename) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 1200);
 };
 
+// ==================== 导出：时长、PNG、SVG、GIF、WebM ====================
+// 自动决定导出时长：morph 模式按段数计算 / 视频取最长
 const getExportDurationMs = () => {
   if (state.morph && state.sources.length > 1) {
     const duration = Math.max(80, state.duration * 1000);
@@ -1579,6 +1694,7 @@ const getExportDurationMs = () => {
   return 3000;
 };
 
+// 导出前让动画/视频/音频进入播放状态；返回快照以便还原
 const beginExportPlayback = () => {
   const snapshot = {
     playing: state.playing,
@@ -1609,6 +1725,7 @@ const restoreExportPlayback = (snapshot) => {
   render();
 };
 
+// 挑选浏览器支持的最佳 WebM 编码器（vp9 > vp8 > 默认）
 const getSupportedWebmType = () => {
   if (!window.MediaRecorder) return '';
   const types = [
@@ -1619,6 +1736,7 @@ const getSupportedWebmType = () => {
   return types.find((type) => MediaRecorder.isTypeSupported(type)) || '';
 };
 
+// WebM 导出：直接从 canvas.captureStream + MediaRecorder 录制
 const exportWebm = async () => {
   if (!canvas?.captureStream || !window.MediaRecorder) {
     setExportStatus('当前浏览器不支持 WebM 录制。');
@@ -1694,6 +1812,7 @@ const exportWebm = async () => {
   }
 };
 
+// GIF 导出：gif.js 编码 + Worker 脚本内联
 const ensureGifWorkerScript = async () => {
   if (gifWorkerScriptUrl) return gifWorkerScriptUrl;
   const workerSource = await fetch(GIF_WORKER_URL).then((response) => {
@@ -1806,6 +1925,8 @@ const exportGif = async () => {
   }
 };
 
+// ==================== SVG 导出 ====================
+// 根据点的形状 / 颜色 / 可见度生成单个 SVG 元素（circle/rect/line）
 const buildSvgMark = (x, y, strength, paper, ink, visibility, point, colourCtx) => {
   const visibleStrength = strength * clamp(visibility, 0, 1);
   if (visibleStrength <= 0.018) return '';
@@ -1854,6 +1975,7 @@ const buildSvgMark = (x, y, strength, paper, ink, visibility, point, colourCtx) 
   );
 };
 
+// 收集所有点对应的 SVG 标记字符串，支持 dissolve/path morph 两种过渡的插值
 const collectSvgMarks = (paper, ink, timestamp, colourCtx) => {
   const marks = [];
   const morph = getMorphState(timestamp);
@@ -1909,6 +2031,7 @@ const collectSvgMarks = (paper, ink, timestamp, colourCtx) => {
   return marks.filter(Boolean);
 };
 
+// 组装完整的 SVG 文件字符串并触发下载
 const exportSvg = () => {
   if (state.sources.length === 0) {
     setExportStatus('请先上传或加载素材后再导出 SVG。');
@@ -2003,6 +2126,8 @@ const exportSvg = () => {
   clearExportStatusSoon('SVG 已生成并开始下载。');
 };
 
+// ==================== 参数控件更新 ====================
+// 从一个 input/control 元素同步对应 state 字段，并决定是否需要让点集失效
 const updateControl = (control) => {
   const key = control.dataset.control;
   if (!key) return;
@@ -2021,6 +2146,7 @@ const updateControl = (control) => {
 
   if (key === 'morph') updatePlayButton();
 
+  // 这些参数影响点集本身，修改后必须 rebuildPointSets
   if (['step', 'rotation', 'threshold', 'contrast', 'detail', 'highlightDetail', 'invert'].includes(key)) invalidatePointSets();
   if (['canvasRes', 'canvasPadding'].includes(key)) {
     resetView();
@@ -2028,8 +2154,10 @@ const updateControl = (control) => {
   }
 };
 
+// ==================== 初始化 & 事件绑定 ====================
 if (canvas && context) {
   let pendingRender = 0;
+  // 合并短时间内多次 render 调用（同一帧内只触发一次）
   const scheduleRender = () => {
     if (pendingRender) return;
     pendingRender = window.requestAnimationFrame(() => {
@@ -2046,6 +2174,7 @@ if (canvas && context) {
 
   const canvasWrap = canvas.parentElement;
 
+  // 画布交互：滚轮缩放（以鼠标位置为中心）
   canvasWrap.addEventListener('wheel', (event) => {
     event.preventDefault();
     const rect = canvasWrap.getBoundingClientRect();
@@ -2064,6 +2193,7 @@ if (canvas && context) {
     applyView();
   }, { passive: false });
 
+  // 画布交互：指针拖拽平移
   let panning = false;
   let panStartX = 0;
   let panStartY = 0;
@@ -2097,6 +2227,7 @@ if (canvas && context) {
   canvasWrap.addEventListener('pointerup', endPan);
   canvasWrap.addEventListener('pointercancel', endPan);
 
+  // 画布交互：双击 / Ctrl+0 重置视图
   canvasWrap.addEventListener('dblclick', () => {
     resetView();
   });
@@ -2111,6 +2242,7 @@ if (canvas && context) {
   applyView();
   updateSwatchAvailability();
 
+  // 绑定所有 input/checkbox/range 的 change 事件
   controls.forEach((control) => {
     updateControl(control);
     control.addEventListener('input', () => {
@@ -2119,6 +2251,7 @@ if (canvas && context) {
     });
   });
 
+  // 绑定 segmented button（形状/颜色/过渡/路径/画布基准）
   const bindSegmented = (buttons, datasetKey, stateKey, { onChange = null } = {}) => {
     buttons.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2146,12 +2279,14 @@ if (canvas && context) {
     invalidatePointSets();
   }});
 
+  // 文件上传：每个 input 独立处理（可能有多入口）
   fileInputs.forEach(input => {
     input.addEventListener('change', () => {
       loadMediaFiles(input.files);
     });
   });
 
+  // 主菜单 / 导出 / 工具菜单的开关逻辑
   menuToggle?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (exportPopover && !exportPopover.hasAttribute('hidden')) closeExportMenu();
@@ -2178,6 +2313,7 @@ if (canvas && context) {
     closeMenu();
   });
 
+  // 导出菜单
   const openExportMenu = () => {
     if (!exportPopover || !exportToggle) return;
     exportPopover.removeAttribute('hidden');
@@ -2211,6 +2347,7 @@ if (canvas && context) {
     toggleExportMenu();
   });
 
+  // 工具菜单（关于 / 设置）
   const openUtilMenu = () => {
     if (!utilMenuPopover || !utilMenuToggle) return;
     utilMenuPopover.removeAttribute('hidden');
@@ -2252,6 +2389,7 @@ if (canvas && context) {
     showSettings();
   });
 
+  // 全局点击/Esc：点击外部或按 Esc 关闭所有弹层
   document.addEventListener('click', (e) => {
     if (menuPopover && !menuPopover.hasAttribute('hidden') && !menuPopover.contains(e.target) && !menuToggle?.contains(e.target)) {
       closeMenu();
@@ -2271,6 +2409,7 @@ if (canvas && context) {
     }
   });
 
+  // 播放/暂停按钮
   playButton?.addEventListener('click', () => {
     state.playing = !state.playing;
 
@@ -2289,6 +2428,7 @@ if (canvas && context) {
     }
   });
 
+  // 矢量缩放开关：缩放时 canvas 物理分辨率也跟着提升，让导出更清晰
   const vectorZoomToggle = document.querySelector('[data-vector-zoom]');
   if (vectorZoomToggle) {
     vectorZoomToggle.checked = state.vectorZoom;
@@ -2298,6 +2438,7 @@ if (canvas && context) {
     });
   }
 
+  // PNG 导出：直接用 canvas.toDataURL，最简单
   downloadPngButton?.addEventListener('click', () => {
     const link = document.createElement('a');
     link.download = `PNG_dot_${getExportBaseName()}.png`;
@@ -2318,6 +2459,7 @@ if (canvas && context) {
   });
 
 
+  // ==================== 双向同步：state → 控件 ====================
   const syncControlsFromState = () => {
     controls.forEach((control) => {
       const key = control.dataset.control;
@@ -2338,6 +2480,7 @@ if (canvas && context) {
 
   window._syncControlsFromState = syncControlsFromState;
 
+  // 重置参数按钮
   document.querySelector('[data-reset-params]')?.addEventListener('click', async () => {
     const activeTab = document.querySelector('.panel-tab.is-active')?.dataset.panelTab || 'static';
     const label = activeTab === 'dynamic' ? '动态' : '静态';
@@ -2347,6 +2490,7 @@ if (canvas && context) {
     else resetStaticParams();
   });
 
+  // 窗口 resize 自动重新 fit
   window.addEventListener('resize', () => {
     resetView();
     invalidatePointSets();
@@ -2359,5 +2503,6 @@ if (canvas && context) {
     if (tabsBar) tabsBar.style.display = 'none';
   }
 
+  // 最后：加载默认示例素材（内嵌的默认图 / 演示图）
   loadDemoSources();
 }
