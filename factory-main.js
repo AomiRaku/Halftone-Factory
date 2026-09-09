@@ -1,3 +1,4 @@
+/* global gifler, GIF */
 // ==================== DOM 引用 ====================
 const canvas = document.querySelector('[data-canvas]');
 const caption = document.querySelector('[data-caption]');
@@ -8,7 +9,6 @@ const downloadPngButton = document.querySelector('[data-download-png]') || docum
 const downloadWebmButton = document.querySelector('[data-download-webm]');
 const downloadGifButton = document.querySelector('[data-download-gif]');
 const playButton = document.querySelector('[data-play]');
-const playIcon = document.querySelector('[data-play-icon]');
 
 const menuToggle = document.querySelector('[data-menu-toggle]');
 const menuPopover = document.querySelector('[data-menu-popover]');
@@ -27,13 +27,20 @@ const canvasBaseButtons = Array.from(document.querySelectorAll('[data-canvas-bas
 const controls = Array.from(document.querySelectorAll('[data-control]'));
 const panelToggle = document.querySelector('[data-panel-toggle]');
 
-// 滑块刻度线位置计算（CSS 变量 --tick-pct）
+// 滑块刻度线位置计算（CSS 变量 --tick-pct / --val-pct）
 document.querySelectorAll('input[type="range"]').forEach((input) => {
   const min = +input.min || 0;
   const max = +input.max || 100;
   const def = input.hasAttribute('value') ? +input.getAttribute('value') : (min + max) / 2;
-  const pct = (def - min) / (max - min) * 100;
-  input.style.setProperty('--tick-pct', pct.toFixed(2) + '%');
+  const defPct = (def - min) / (max - min) * 100;
+  const curPct = (+input.value - min) / (max - min) * 100;
+  input.style.setProperty('--tick-pct', defPct.toFixed(2) + '%');
+  input.style.setProperty('--val-pct', curPct.toFixed(2) + '%');
+  const row = input.closest('.slider-row');
+  if (row) {
+    row.style.setProperty('--tick-pct', defPct.toFixed(2) + '%');
+    row.style.setProperty('--val-pct', curPct.toFixed(2) + '%');
+  }
 });
 
 // 输出数值显示元素集合
@@ -247,18 +254,6 @@ const getGradientColour = (point, shadowRgb, midRgb, highlightRgb) => {
   const tone = clamp(point.luminance, 0, 1);
   if (tone < 0.54) return mixRgb(shadowRgb, midRgb, tone / 0.54);
   return mixRgb(midRgb, highlightRgb, (tone - 0.54) / 0.46);
-};
-
-// rgb() 字符串缓存，减少 fillStyle/strokeStyle 设置时的 GC 压力
-const rgbStringCache = new Map();
-const rgbToStr = (colour) => {
-  const key = `${colour.r}|${colour.g}|${colour.b}`;
-  let s = rgbStringCache.get(key);
-  if (s === undefined) {
-    s = `rgb(${colour.r} ${colour.g} ${colour.b})`;
-    rgbStringCache.set(key, s);
-  }
-  return s;
 };
 
 // 核心：根据色彩模式 + 点的亮度/颜色信息，算出该点的最终墨色
@@ -497,7 +492,7 @@ const removeSource = (idx) => {
 const renderMenu = () => {
   if (!menuList || !menuCount) return;
   const count = state.sources.length;
-  menuCount.textContent = count;
+  menuCount.textContent = String(count);
 
   const dragOver = menuList.dataset.dragOver;
   const dragOverIdx = dragOver ? Number.parseInt(dragOver, 10) : -1;
@@ -2372,17 +2367,84 @@ if (canvas && context) {
     updateControl(control);
     control.addEventListener('input', () => {
       updateControl(control);
+      if (control.type === 'range') {
+        const min = +control.min || 0;
+        const max = +control.max || 100;
+        const pct = (+control.value - min) / (max - min) * 100;
+        control.style.setProperty('--val-pct', pct.toFixed(2) + '%');
+        const row = control.closest('.slider-row');
+        if (row) row.style.setProperty('--val-pct', pct.toFixed(2) + '%');
+      }
       scheduleRender();
     });
   });
 
+  // 移动端：range 被 CSS 隐藏时，点击 slider-head 弹出浮层大滑块
+  document.querySelectorAll('.slider-row').forEach((row) => {
+    const nativeRange = row.querySelector('input[type="range"]');
+    const head = row.querySelector('.slider-head');
+    if (!nativeRange || !head) return;
+
+    head.addEventListener('click', () => {
+      if (nativeRange.offsetParent !== null) return;
+
+      const label = head.querySelector('span')?.textContent || '';
+
+      const popover = document.createElement('div');
+      popover.className = 'slider-popover';
+      popover.innerHTML = `
+        <div class="slider-popover__backdrop"></div>
+        <div class="slider-popover__panel">
+          <div class="slider-popover__label">
+            <span>${label}</span>
+            <output></output>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(popover);
+      requestAnimationFrame(() => popover.classList.add('is-open'));
+
+      const panel = popover.querySelector('.slider-popover__panel');
+      const popOutput = popover.querySelector('output');
+      popOutput.textContent = nativeRange.value;
+
+      panel.appendChild(nativeRange);
+      nativeRange.style.display = 'block';
+      nativeRange.style.width = '100%';
+      nativeRange.style.height = '44px';
+
+      nativeRange.addEventListener('input', () => {
+        popOutput.textContent = nativeRange.value;
+        const min = +nativeRange.min || 0;
+        const max = +nativeRange.max || 100;
+        const pct = (+nativeRange.value - min) / (max - min) * 100;
+        row.style.setProperty('--val-pct', pct.toFixed(2) + '%');
+      });
+
+      let closing = false;
+      const close = () => {
+        if (closing) return;
+        closing = true;
+        popover.classList.remove('is-open');
+        panel.addEventListener('transitionend', () => {
+          row.appendChild(nativeRange);
+          nativeRange.style.display = '';
+          nativeRange.style.width = '';
+          nativeRange.style.height = '';
+          popover.remove();
+        }, { once: true });
+      };
+      popover.querySelector('.slider-popover__backdrop').addEventListener('click', close);
+    });
+  });
+
   // 绑定 segmented button（形状/颜色/过渡/路径/画布基准）
-  const bindSegmented = (buttons, datasetKey, stateKey, { onChange = null } = {}) => {
+  const bindSegmented = (buttons, datasetKey, stateKey, { onChange = () => {} } = {}) => {
     buttons.forEach((btn) => {
       btn.addEventListener('click', () => {
         state[stateKey] = btn.dataset[datasetKey];
         buttons.forEach((item) => item.classList.toggle('is-active', item === btn));
-        onChange?.();
+        onChange();
         scheduleRender();
       });
     });
@@ -2407,7 +2469,7 @@ if (canvas && context) {
   // 文件上传：每个 input 独立处理（可能有多入口）
   fileInputs.forEach(input => {
     input.addEventListener('change', () => {
-      loadMediaFiles(input.files);
+      void loadMediaFiles(input.files);
     });
   });
 
@@ -2572,17 +2634,16 @@ if (canvas && context) {
   });
 
   downloadWebmButton?.addEventListener('click', () => {
-    exportWebm();
+    void exportWebm();
   });
 
   downloadGifButton?.addEventListener('click', () => {
-    exportGif();
+    void exportGif();
   });
 
   downloadSvgButton?.addEventListener('click', () => {
     exportSvg();
   });
-
 
   // ==================== 双向同步：state → 控件 ====================
   const syncControlsFromState = () => {
@@ -2629,5 +2690,5 @@ if (canvas && context) {
   }
 
   // 最后：加载默认示例素材（内嵌的默认图 / 演示图）
-  loadDemoSources();
+  void loadDemoSources();
 }
