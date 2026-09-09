@@ -1263,26 +1263,52 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
   font-size: 11px;
   font-weight: 600;
   color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* ==================== Play Button ==================== */
 .toolbar-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
+  min-width: 0;
+}
+.toolbar-controls .play-btn {
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+.toolbar-controls .hint {
+  flex-shrink: 0;
+}
+.toolbar-controls .toggle-track,
+.toolbar-controls .toggle input {
+  flex-shrink: 0;
+}
+.toolbar-controls .toggle-sm {
+  margin-right: 8px;
 }
 
 .toggle-sm {
   --toggle-height: 20px;
   --toggle-thumb: 14px;
-  gap: 5px;
+  gap: 0;
   font-size: 11px;
   padding: 0;
   background: transparent;
   border: none;
+  min-width: 0;
+  flex-shrink: 1;
 }
 .toggle-sm:hover { background: transparent; }
-.toggle-sm .toggle-label { font-size: 11px; }
+.toggle-sm .toggle-label {
+  font-size: 11px;
+  flex-shrink: 1;
+  margin-left: 5px;
+  min-width: 0;
+}
 
 .hint {
   position: relative;
@@ -1409,8 +1435,18 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
   min-width: 0;
 }
 
+.toolbar-left {
+  flex-shrink: 1;
+  overflow: hidden;
+  min-width: 68px;
+}
+
 .toolbar-right {
   gap: 6px;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  justify-content: flex-end;
 }
 
 .mode-tag {
@@ -1449,6 +1485,17 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
   font-size: 10px;
   font-weight: 600;
   color: var(--text-3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.toolbar-right .info-pill:has([data-caption]) {
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+}
+.info-pill > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .info-pill.is-hidden {
@@ -1549,6 +1596,7 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
   .btn.btn-upload--mobile { display: inline-flex; }
 
   .canvas-toolbar { display: none; }
+  .canvas-footer { display: none; }
 
   .swatches { grid-template-columns: repeat(5, 1fr); }
   .toggles { flex-direction: row; flex-wrap: wrap; }

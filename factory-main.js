@@ -1463,7 +1463,7 @@ const applyView = () => {
 
 const updateStatusbar = () => {
   if (zoomLabel) zoomLabel.textContent = `${Math.round(state.viewScale * 100)}%`;
-  if (sizeLabel && canvas) sizeLabel.textContent = `${canvas.offsetWidth} × ${canvas.offsetHeight}px`;
+  if (sizeLabel && canvas) sizeLabel.textContent = `${canvas.offsetWidth} × ${canvas.offsetHeight}`;
 };
 
 // 自动 fit 到画布容器中（首次加载 / 窗口 resize 后调用）
