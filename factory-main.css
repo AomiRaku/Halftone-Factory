@@ -1483,8 +1483,8 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
     transform: translate(-50%, -50%) scale(0.92) !important;
     transform-origin: center !important;
     min-width: 280px !important;
-    max-width: calc(100vw - 32px) !important;
-    width: min(340px, calc(100vw - 32px));
+    max-width: calc(100vw - 64px) !important;
+    width: min(320px, calc(100vw - 64px));
     max-height: 80vh !important;
     z-index: 1000 !important;
   }
