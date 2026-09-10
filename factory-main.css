@@ -1607,8 +1607,13 @@ html.panel-collapsed .btn-panel-toggle .icon-collapsed { display: block; }
   .canvas-footer { display: none; }
 
   .swatches { grid-template-columns: repeat(5, 1fr); }
-  .toggles { flex-direction: row; flex-wrap: wrap; }
-  .toggle { flex: 1 1 calc(50% - 6px); }
+
+  .toggle-group .panel-row-inline {
+    justify-content: space-between;
+  }
+  .toggle-group .toggle {
+    margin-left: auto;
+  }
 
   .btn-panel-toggle { width: 36px; height: 36px; }
   .btn-panel-toggle svg { width: 20px; height: 20px; }
