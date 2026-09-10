@@ -39,7 +39,6 @@ python3 -m http.server 6702
 <img height="400" alt="HF-Main" src="https://github.com/user-attachments/assets/d96f7c22-221f-472c-8dab-ac57a375984c" />
 <img height="400" alt="HF-Sett" src="https://github.com/user-attachments/assets/961c7d24-b249-475d-a7ae-b8848955e4f5" />
 
-
 ## 浏览器支持
 
 - Chrome 80+
@@ -48,20 +47,16 @@ python3 -m http.server 6702
 - Firefox 113+
 - Safari 17+
 
-## 素材建议
-
-为了获得最佳效果：
-
-- 图像：透明 PNG/WebP 或白底/高对比产品/物体抠图。（只是建议，事实上基本什么图片都行）
-- 大文件：上传前可以先压缩分辨率，或许在中低配置机器上会更流畅。
-
 ## 实验性功能
+
 - 导入动态视频、GIF
 - 多素材转场：消隐 (dissolve) 和 点云重组 (point-path)
 - WebM 和 GIF 动态导出
 
 ## 其他
+
 - 该项目所有数据均在本地处理，没有任何数据上传。根本就没有服务器（）
+- 素材如果使用 透明背景图像，或白底、高对比主体图，效果会更佳。
 - 创建该项目的起因是，做图的时候发现网上的这类工具全都要付费导出或是限制使用，一气之下干脆自己弄一个。😋
 - 本项目的基础功能，源自 [halftone-lab](https://github.com/vibe-lark/halftone-lab) 的代码并进行了重构和优化改进。
 - 本项目采用 [MIT协议](LICENSE) 。
