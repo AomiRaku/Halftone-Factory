@@ -16,6 +16,14 @@
     <link rel="stylesheet" href="factory-main.css">
   </head>
   <body>
+    <div class="update-banner" data-update-banner role="status" aria-live="polite">
+      <svg class="update-banner__spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      <span>检测到更新，当前页面版本已过时，请刷新页面！</span>
+      <button type="button" class="btn-update-refresh" data-update-refresh>点击刷新</button>
+      <button type="button" class="btn-update-close" data-update-close aria-label="关闭">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
     <div class="app-root">
       <header class="app-topbar">
         <div class="topbar-left">
@@ -471,11 +479,101 @@
 
     <script src="factory-main.js" defer></script>
     <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js').catch(() => {});
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+
+        var HASH_KEY = 'hf-html-hash';
+        var refreshing = false;
+        var pendingSW = null;
+        var updateCheckRunning = false;
+        var snoozeUntil = 0;
+
+        function showUpdateBanner() {
+          if (Date.now() < snoozeUntil) return;
+          var banner = document.querySelector('[data-update-banner]');
+          if (!banner) return;
+          banner.classList.add('is-visible');
+        }
+
+        function hideUpdateBanner() {
+          var banner = document.querySelector('[data-update-banner]');
+          if (!banner) return;
+          banner.classList.remove('is-visible');
+          snoozeUntil = Date.now() + 60000;
+        }
+
+        function hashStr(str) {
+          var h = 0;
+          for (var i = 0; i < str.length; i++) {
+            h = ((h << 5) - h) + str.charCodeAt(i);
+            h |= 0;
+          }
+          return h.toString(36);
+        }
+
+        function checkForUpdate() {
+          if (updateCheckRunning) return;
+          updateCheckRunning = true;
+
+          fetch('./?__v=' + Date.now(), {
+            cache: 'no-store',
+            headers: { 'Accept': 'text/html' }
+          }).then(function (res) { return res.text(); })
+            .then(function (html) {
+              var newHash = hashStr(html);
+              var oldHash = localStorage.getItem(HASH_KEY);
+              if (oldHash && oldHash !== newHash) {
+                showUpdateBanner();
+              }
+              localStorage.setItem(HASH_KEY, newHash);
+            })
+            .catch(function () {})
+            .then(function () { updateCheckRunning = false; });
+        }
+
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js').then(function (reg) {
+            if (reg.waiting) {
+              pendingSW = reg.waiting;
+              showUpdateBanner();
+            }
+            reg.addEventListener('updatefound', function () {
+              var newSW = reg.installing;
+              if (!newSW) return;
+              newSW.addEventListener('statechange', function () {
+                if (newSW.state === 'installed') {
+                  pendingSW = newSW;
+                  showUpdateBanner();
+                }
+              });
+            });
+          }).catch(function () {});
+
+          setTimeout(checkForUpdate, 1500);
         });
-      }
+
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
+        });
+
+        document.addEventListener('click', function (e) {
+          var refreshBtn = e.target.closest('[data-update-refresh]');
+          if (refreshBtn) {
+            if (pendingSW) {
+              pendingSW.postMessage({ type: 'SKIP_WAITING' });
+            } else {
+              refreshing = true;
+              window.location.reload();
+            }
+          }
+          var closeBtn = e.target.closest('[data-update-close]');
+          if (closeBtn) {
+            hideUpdateBanner();
+          }
+        });
+      })();
     </script>
     <script>
       (function () {

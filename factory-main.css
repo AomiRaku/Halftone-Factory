@@ -1812,3 +1812,84 @@ body.slider-anti-mistouch .slider-head output {
   border-radius: 6px;
   background: transparent;
 }
+/* ==================== Update Banner ==================== */
+.update-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translate(-50%, -130%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px 9px 12px;
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-size: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--accent-mid);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(94, 234, 212, 0.08), 0 0 24px rgba(94, 234, 212, 0.06);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  transition: transform 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease;
+  pointer-events: none;
+  opacity: 0;
+  min-width: 240px;
+  max-width: 92vw;
+}
+.update-banner.is-visible {
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+  opacity: 1;
+}
+.update-banner__spinner {
+  color: var(--accent);
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 6px rgba(94, 234, 212, 0.4));
+  animation: update-spin 1.6s linear infinite;
+}
+@keyframes update-spin {
+  to { transform: rotate(360deg); }
+}
+.update-banner span {
+  flex: 1;
+  text-align: center;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+.btn-update-refresh {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--bg-1);
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 160ms var(--ease), transform 120ms var(--ease), box-shadow 160ms var(--ease);
+  box-shadow: 0 2px 8px rgba(94, 234, 212, 0.25);
+  flex-shrink: 0;
+}
+.btn-update-refresh:hover {
+  background: var(--accent-strong);
+  box-shadow: 0 4px 14px rgba(94, 234, 212, 0.4);
+}
+.btn-update-refresh:active { transform: scale(0.96); }
+.btn-update-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-4);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 140ms var(--ease), background 140ms var(--ease);
+  flex-shrink: 0;
+}
+.btn-update-close:hover { color: var(--text-1); background: var(--bg-3); }
