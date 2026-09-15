@@ -15,12 +15,6 @@ Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku)
 
 ####  方法 2 ：下载源码到本地并解压，直接用浏览器打开 `index.html` ，或启动静态服务器。
 
-```bash
-python3 -m http.server 6702
-```
-```
-然后访问：http://127.0.0.1:6702
-```
 
 ## 功能
 
