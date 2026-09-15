@@ -13,9 +13,7 @@ Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku)
 
 #### ⭐方法 1 ：直接访问 [此处](https://aomiraku.github.io/Halftone-Factory/) 开始。这是该项目的 Github Pages，始终保持最新。所有数据不会上传，都在本地处理。
 
-####  方法 2 ：下载源码到本地并解压，直接用浏览器打开 `index.html` 。
-
-####  方法 3 ：下载源码到本地解压，在项目根目录本地启动静态服务器：
+####  方法 2 ：下载源码到本地并解压，直接用浏览器打开 `index.html` ，或启动静态服务器。
 
 ```bash
 python3 -m http.server 6702
