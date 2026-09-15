@@ -5,8 +5,6 @@
 # 半调工厂 Halftone Factory
 ### 半调网点图像生成器
 
-该项目为纯 HTML + CSS + JavaScript
-
 Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku)
 
 </div>
@@ -49,14 +47,15 @@ python3 -m http.server 6702
 
 ## 实验性功能
 
-- 导入动态视频、GIF**（计划移除）**
+- 导入动态视频、GIF **（计划移除）**
 - 多素材转场：消隐 (dissolve) 和 点云重组 (point-path)**（计划移除）**
-- WebM 和 GIF 动态导出**（计划移除，后期将随其他功能回归）**
+- WebM 和 GIF 动态导出 **（计划移除，后期将随其他功能回归）**
 
 ## 其他
 
 - 该项目所有数据均在本地处理，没有任何数据上传。根本就没有服务器（）
 - 素材如果使用 透明背景图像，或白底、高对比主体图，效果会更佳。
 - 创建该项目的起因是，做图的时候发现网上的这类工具全都要付费导出或是限制使用，一气之下干脆自己弄一个。😋
+- 该项目为纯 HTML + CSS + JavaScript，由 TRAE 辅助编写。
 - 本项目的基础功能，源自 [halftone-lab](https://github.com/vibe-lark/halftone-lab) 的代码并进行了重构和优化改进。
 - 本项目采用 [MIT协议](LICENSE) 。
