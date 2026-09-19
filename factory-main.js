@@ -779,7 +779,7 @@ const showConfirm = (message, opts = {}) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
 });
 
-const APP_VERSION = '0.2.6-151301';
+const APP_VERSION = 'build 4302';
 
 // 关于对话框
 const showAbout = () => {
@@ -926,7 +926,7 @@ const showSettings = () => {
           <span class="toggle-track"><span class="toggle-thumb"></span></span>
           <span class="toggle-label">滑块防误触</span>
         </label>
-        <div class="setting-desc">开启后，滑块将在二级页面调整，避免触屏设备滑动时误触滑块。手机端强制开启。</div>
+        <div class="setting-desc">开启后，滑块将在二级页面调整，避免 Pad 等触屏设备上滑动时误触滑块。手机端强制开启。</div>
 
         <div class="settings-divider"></div>
 
