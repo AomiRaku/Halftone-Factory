@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="160" alt="HF-Logo" src="https://github.com/user-attachments/assets/9014a970-5bf0-4af3-b116-95fd1936bc14" />
+<img width="128" alt="HF-Logo" src="https://github.com/user-attachments/assets/9014a970-5bf0-4af3-b116-95fd1936bc14" />
 
 # 半调工厂 Halftone Factory
 ### 半调网点图像生成器
