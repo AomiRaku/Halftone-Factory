@@ -1861,7 +1861,10 @@ body.slider-anti-mistouch .slider-head output {
 .btn-update-refresh {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  /* “点击刷新”/“更新中”两种文案宽度不同，定个下限免得按钮跟着抖 */
+  min-width: 84px;
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -1903,7 +1906,14 @@ body.slider-anti-mistouch .slider-head output {
   border-color: rgba(111, 119, 138, 0.3);
   border-top-color: var(--text-3);
 }
-.update-banner.is-loading .btn-update-close { display: none; }
+/* 叉号收起：用宽度 + 透明度过渡，别用 display:none，否则整条提示会瞬间跳位。
+   margin-left 同步吃掉 flex gap，收起后不留空隙。 */
+.update-banner.is-loading .btn-update-close {
+  width: 0;
+  margin-left: -10px;
+  opacity: 0;
+  pointer-events: none;
+}
 
 /* 更新中：压暗页面背景（层级在页面内容之上、更新提示之下） */
 body.is-updating::after {
@@ -1930,7 +1940,10 @@ body.is-updating::after {
   color: var(--text-4);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: color 140ms var(--ease), background 140ms var(--ease);
+  overflow: hidden;
+  transition: color 140ms var(--ease), background 140ms var(--ease),
+              width 300ms var(--ease), opacity 300ms var(--ease),
+              margin-left 300ms var(--ease);
   flex-shrink: 0;
 }
 .btn-update-close:hover { color: var(--text-1); background: var(--bg-3); }
