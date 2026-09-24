@@ -933,7 +933,7 @@ const showSettings = () => {
         <label class="toggle toggle-sm">
           <input type="checkbox" data-setting-experimental>
           <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span class="toggle-label">启用实验性功能</span>
+          <span class="toggle-label">启用实验性功能01</span>
         </label>
         <div class="setting-desc">实验性功能为开发未完善的测试功能，可能存在大bug、卡顿和性能问题等，仅供体验。</div>
 
