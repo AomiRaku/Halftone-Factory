@@ -1875,13 +1875,13 @@ body.slider-anti-mistouch .slider-head output {
   box-shadow: 0 2px 8px rgba(94, 234, 212, 0.25);
   flex-shrink: 0;
 }
-.btn-update-refresh:not(.is-loading):hover {
+.update-banner:not(.is-loading) .btn-update-refresh:hover {
   background: var(--accent-strong);
   box-shadow: 0 4px 14px rgba(94, 234, 212, 0.4);
 }
-.btn-update-refresh:not(.is-loading):active { transform: scale(0.96); }
-/* 点击后：按钮变灰 + 前置转圈 + 文案“更新中” */
-.btn-update-refresh.is-loading {
+.update-banner:not(.is-loading) .btn-update-refresh:active { transform: scale(0.96); }
+/* 点击后：按钮变灰 + 前置转圈 + 文案“更新中”，叉号收起、页面背景压暗 */
+.update-banner.is-loading .btn-update-refresh {
   color: var(--text-3);
   background: var(--bg-3);
   box-shadow: none;
@@ -1898,10 +1898,25 @@ body.slider-anti-mistouch .slider-head output {
   animation: update-spin 0.7s linear infinite;
   flex-shrink: 0;
 }
-.btn-update-refresh.is-loading .btn-update-spinner {
+.update-banner.is-loading .btn-update-spinner {
   display: block;
   border-color: rgba(111, 119, 138, 0.3);
   border-top-color: var(--text-3);
+}
+.update-banner.is-loading .btn-update-close { display: none; }
+
+/* 更新中：压暗页面背景（层级在页面内容之上、更新提示之下） */
+body.is-updating::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(6, 8, 12, 0.62);
+  animation: update-dim-in 200ms var(--ease) both;
+}
+@keyframes update-dim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .btn-update-close {
   display: flex;

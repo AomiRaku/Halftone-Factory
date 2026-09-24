@@ -508,23 +508,36 @@
 
         function hideUpdateBanner() {
           // 已经在“更新中”就别让它被关掉了，马上就会刷新
-          var btn = document.querySelector('[data-update-refresh]');
-          if (btn && btn.classList.contains('is-loading')) return;
-
           var banner = getBanner();
+          if (banner && banner.classList.contains('is-loading')) return;
+
           if (banner) banner.classList.remove('is-visible');
           // 只在本次页面会话里静默，刷新或重新打开后会重新检测
           dismissed = true;
         }
 
-        // 点击后按钮进入“更新中”：变灰 + 前置转圈 + 文案替换
+        // 点击后进入“更新中”：按钮变灰 + 前置转圈 + 文案替换，
+        // 同时收起关闭按钮并把页面背景压暗
         function setBannerLoading() {
-          var btn = document.querySelector('[data-update-refresh]');
-          if (!btn || btn.classList.contains('is-loading')) return;
-          btn.classList.add('is-loading');
+          var banner = getBanner();
+          var btn = banner ? banner.querySelector('[data-update-refresh]') : null;
+          if (!banner || !btn || banner.classList.contains('is-loading')) return;
+
+          banner.classList.add('is-loading');
+          document.body.classList.add('is-updating');
+
           btn.disabled = true;
           var label = btn.querySelector('[data-update-label]');
           if (label) label.textContent = '更新中';
+
+          // 兜底：万一没能顺利刷新，把界面恢复可用，别把人卡在“更新中”的半暗界面
+          setTimeout(function () {
+            if (!document.body.classList.contains('is-updating')) return;
+            document.body.classList.remove('is-updating');
+            banner.classList.remove('is-loading');
+            btn.disabled = false;
+            if (label) label.textContent = '点击刷新';
+          }, 8000);
         }
 
         function reloadPage() {
