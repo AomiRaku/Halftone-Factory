@@ -482,97 +482,147 @@
       (function () {
         if (!('serviceWorker' in navigator)) return;
 
-        var HASH_KEY = 'hf-html-hash';
+        // 页面加载时是否已经有 SW 在控制本页：
+        // 只有“旧页面遇到新版本”才需要提示，首次访问不需要
+        var controlledOnLoad = !!navigator.serviceWorker.controller;
+        var registration = null;
+        var pendingWorker = null;
         var refreshing = false;
-        var pendingSW = null;
-        var updateCheckRunning = false;
-        var snoozeUntil = 0;
+        var dismissed = false;
+        var lastUpdateCheck = 0;
+        var UPDATE_CHECK_INTERVAL = 60000;
+
+        function getBanner() {
+          return document.querySelector('[data-update-banner]');
+        }
 
         function showUpdateBanner() {
-          if (Date.now() < snoozeUntil) return;
-          var banner = document.querySelector('[data-update-banner]');
+          if (dismissed) return;
+          var banner = getBanner();
           if (!banner) return;
           banner.classList.add('is-visible');
         }
 
         function hideUpdateBanner() {
-          var banner = document.querySelector('[data-update-banner]');
-          if (!banner) return;
-          banner.classList.remove('is-visible');
-          snoozeUntil = Date.now() + 60000;
+          var banner = getBanner();
+          if (banner) banner.classList.remove('is-visible');
+          // 只在本次页面会话里静默，刷新或重新打开后会重新检测
+          dismissed = true;
         }
 
-        function hashStr(str) {
-          var h = 0;
-          for (var i = 0; i < str.length; i++) {
-            h = ((h << 5) - h) + str.charCodeAt(i);
-            h |= 0;
-          }
-          return h.toString(36);
-        }
-
-        function checkForUpdate() {
-          if (updateCheckRunning) return;
-          updateCheckRunning = true;
-
-          fetch('./?__v=' + Date.now(), {
-            cache: 'no-store',
-            headers: { 'Accept': 'text/html' }
-          }).then(function (res) { return res.text(); })
-            .then(function (html) {
-              var newHash = hashStr(html);
-              var oldHash = localStorage.getItem(HASH_KEY);
-              if (oldHash && oldHash !== newHash) {
-                showUpdateBanner();
-              }
-              localStorage.setItem(HASH_KEY, newHash);
-            })
-            .catch(function () {})
-            .then(function () { updateCheckRunning = false; });
-        }
-
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('sw.js').then(function (reg) {
-            if (reg.waiting) {
-              pendingSW = reg.waiting;
-              showUpdateBanner();
-            }
-            reg.addEventListener('updatefound', function () {
-              var newSW = reg.installing;
-              if (!newSW) return;
-              newSW.addEventListener('statechange', function () {
-                if (newSW.state === 'installed') {
-                  pendingSW = newSW;
-                  showUpdateBanner();
-                }
-              });
-            });
-          }).catch(function () {});
-
-          setTimeout(checkForUpdate, 1500);
-        });
-
-        navigator.serviceWorker.addEventListener('controllerchange', function () {
+        function reloadPage() {
           if (refreshing) return;
           refreshing = true;
           window.location.reload();
+        }
+
+        // 点击“点击刷新”：若新版本 SW 已在等待，先让它接管再刷新；
+        // 否则直接刷新即可（这时缓存里已经是新内容了）
+        function applyUpdate() {
+          var worker = (registration && registration.waiting) || pendingWorker;
+          if (!worker) {
+            reloadPage();
+            return;
+          }
+
+          var settled = false;
+          var go = function () {
+            if (settled) return;
+            settled = true;
+            reloadPage();
+          };
+
+          navigator.serviceWorker.addEventListener('controllerchange', go);
+          try {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          } catch (err) {
+            go();
+            return;
+          }
+          setTimeout(go, 3000); // 接管超时兜底，避免点不动
+        }
+
+        function trackWorker(worker) {
+          if (!worker) return;
+          worker.addEventListener('statechange', function () {
+            // 新 SW 安装完成，且本页原本就被旧 SW 控制 → 说明有更新可用
+            if (worker.state === 'installed' && (controlledOnLoad || navigator.serviceWorker.controller)) {
+              pendingWorker = worker;
+              showUpdateBanner();
+            }
+          });
+        }
+
+        function checkForUpdate() {
+          if (!registration) return;
+          var now = Date.now();
+          if (now - lastUpdateCheck < UPDATE_CHECK_INTERVAL) return;
+          lastUpdateCheck = now;
+          try {
+            registration.update();
+          } catch (err) {}
+        }
+
+        // 主动问一次 SW：是否已经发现过内容更新
+        // （兜住“SW 通知早于页面注册监听”的竞态）
+        function askUpdateState() {
+          var sw = navigator.serviceWorker.controller;
+          if (!sw) return;
+          try {
+            sw.postMessage({ type: 'UPDATE_STATE' });
+          } catch (err) {}
+        }
+
+        // html / css / js 的内容变化，由 SW 在后台更新缓存时比对并通知
+        navigator.serviceWorker.addEventListener('message', function (event) {
+          var data = event.data;
+          if (!data || data.type !== 'CONTENT_UPDATED') return;
+          showUpdateBanner();
+        });
+
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js').then(function (reg) {
+            registration = reg;
+
+            if (reg.waiting) {
+              pendingWorker = reg.waiting;
+              showUpdateBanner();
+            }
+
+            trackWorker(reg.installing);
+            reg.addEventListener('updatefound', function () {
+              trackWorker(reg.installing);
+            });
+
+            // 浏览器导航时也会检查 sw.js，这里再主动查一次，更快发现新版本
+            setTimeout(checkForUpdate, 800);
+            askUpdateState();
+          }).catch(function () {});
+        });
+
+        navigator.serviceWorker.addEventListener('controllerchange', askUpdateState);
+
+        // 回到页面时再查一次（PWA 常驻后台的场景）
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState !== 'visible') return;
+          askUpdateState();
+          checkForUpdate();
         });
 
         document.addEventListener('click', function (e) {
-          var refreshBtn = e.target.closest('[data-update-refresh]');
-          if (refreshBtn) {
-            if (pendingSW) {
-              pendingSW.postMessage({ type: 'SKIP_WAITING' });
-            } else {
-              refreshing = true;
-              window.location.reload();
-            }
+          if (e.target.closest('[data-update-refresh]')) {
+            applyUpdate();
+            return;
           }
-          var closeBtn = e.target.closest('[data-update-close]');
-          if (closeBtn) {
+          if (e.target.closest('[data-update-close]')) {
             hideUpdateBanner();
           }
         });
+
+        // 旧版本用 localStorage 存过 HTML 指纹，现在改由 SW 逐资源比对，这里清掉
+        try {
+          localStorage.removeItem('hf-html-hash');
+        } catch (err) {}
       })();
     </script>
     <script>
