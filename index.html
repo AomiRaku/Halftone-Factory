@@ -17,9 +17,12 @@
   </head>
   <body>
     <div class="update-banner" data-update-banner role="status" aria-live="polite">
-      <svg class="update-banner__spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      <svg class="update-banner__icon" width="14" height="14" viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true"><path d="M876.8 659.2 620.8 512l256-147.2c25.6-12.8 38.4-51.2 19.2-76.8-12.8-25.6-51.2-38.4-76.8-19.2l-256 147.2L563.2 121.6C569.6 89.6 544 64 512 64S454.4 89.6 454.4 121.6l0 294.4-256-147.2C179.2 249.6 140.8 262.4 128 288c-12.8 25.6-6.4 64 19.2 76.8l256 147.2-256 147.2c-25.6 12.8-38.4 51.2-19.2 76.8 12.8 19.2 32 25.6 51.2 25.6 6.4 0 19.2 0 25.6-6.4l256-147.2 0 294.4C454.4 934.4 480 960 512 960s57.6-25.6 57.6-57.6L569.6 608l256 147.2c6.4 6.4 19.2 6.4 25.6 6.4 19.2 0 38.4-12.8 51.2-25.6C908.8 710.4 902.4 672 876.8 659.2z"/></svg>
       <span>检测到资源更新！当前页面已过时，请刷新页面！</span>
-      <button type="button" class="btn-update-refresh" data-update-refresh>点击刷新</button>
+      <button type="button" class="btn-update-refresh" data-update-refresh>
+        <span class="btn-update-spinner" aria-hidden="true"></span>
+        <span data-update-label>点击刷新</span>
+      </button>
       <button type="button" class="btn-update-close" data-update-close aria-label="关闭">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -504,10 +507,24 @@
         }
 
         function hideUpdateBanner() {
+          // 已经在“更新中”就别让它被关掉了，马上就会刷新
+          var btn = document.querySelector('[data-update-refresh]');
+          if (btn && btn.classList.contains('is-loading')) return;
+
           var banner = getBanner();
           if (banner) banner.classList.remove('is-visible');
           // 只在本次页面会话里静默，刷新或重新打开后会重新检测
           dismissed = true;
+        }
+
+        // 点击后按钮进入“更新中”：变灰 + 前置转圈 + 文案替换
+        function setBannerLoading() {
+          var btn = document.querySelector('[data-update-refresh]');
+          if (!btn || btn.classList.contains('is-loading')) return;
+          btn.classList.add('is-loading');
+          btn.disabled = true;
+          var label = btn.querySelector('[data-update-label]');
+          if (label) label.textContent = '更新中';
         }
 
         function reloadPage() {
@@ -556,7 +573,7 @@
             go();
             return;
           }
-          setTimeout(go, 4000); // 接管超时兜底，避免点不动
+          setTimeout(go, 3000); // 接管超时兜底，避免点不动
         }
 
         // 等 worker 装好再回调；超时或失败也回调，避免把用户卡住
@@ -590,6 +607,7 @@
         // 点击“点击刷新”
         function applyUpdate() {
           if (refreshing) return;
+          setBannerLoading();
 
           var reg = registration;
           var waiting = (reg && reg.waiting) || pendingWorker;
@@ -646,7 +664,7 @@
             reg.update();
           } catch (err) {}
 
-          setTimeout(finish, 4000);
+          setTimeout(finish, 3000);
         }
 
         function trackWorker(worker) {

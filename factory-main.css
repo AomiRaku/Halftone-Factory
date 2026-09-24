@@ -1815,7 +1815,8 @@ body.slider-anti-mistouch .slider-head output {
 /* ==================== Update Banner ==================== */
 .update-banner {
   position: fixed;
-  top: 12px;
+  top: 20px;
+  top: calc(20px + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translate(-50%, -130%);
   z-index: 9999;
@@ -1842,16 +1843,15 @@ body.slider-anti-mistouch .slider-head output {
   pointer-events: auto;
   opacity: 1;
 }
-.update-banner__spinner {
+.update-banner__icon {
   color: var(--accent);
   flex-shrink: 0;
   filter: drop-shadow(0 0 6px rgba(94, 234, 212, 0.4));
-  animation: update-spin 1.6s linear infinite;
 }
 @keyframes update-spin {
   to { transform: rotate(360deg); }
 }
-.update-banner span {
+.update-banner > span {
   flex: 1;
   text-align: center;
   font-weight: 500;
@@ -1859,6 +1859,9 @@ body.slider-anti-mistouch .slider-head output {
   letter-spacing: 0.01em;
 }
 .btn-update-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -1868,15 +1871,38 @@ body.slider-anti-mistouch .slider-head output {
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 160ms var(--ease), transform 120ms var(--ease), box-shadow 160ms var(--ease);
+  transition: background 160ms var(--ease), transform 120ms var(--ease), box-shadow 160ms var(--ease), color 160ms var(--ease);
   box-shadow: 0 2px 8px rgba(94, 234, 212, 0.25);
   flex-shrink: 0;
 }
-.btn-update-refresh:hover {
+.btn-update-refresh:not(.is-loading):hover {
   background: var(--accent-strong);
   box-shadow: 0 4px 14px rgba(94, 234, 212, 0.4);
 }
-.btn-update-refresh:active { transform: scale(0.96); }
+.btn-update-refresh:not(.is-loading):active { transform: scale(0.96); }
+/* 点击后：按钮变灰 + 前置转圈 + 文案“更新中” */
+.btn-update-refresh.is-loading {
+  color: var(--text-3);
+  background: var(--bg-3);
+  box-shadow: none;
+  cursor: default;
+  pointer-events: none;
+}
+.btn-update-spinner {
+  display: none;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(16, 19, 26, 0.3);
+  border-top-color: var(--bg-1);
+  border-radius: 50%;
+  animation: update-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+.btn-update-refresh.is-loading .btn-update-spinner {
+  display: block;
+  border-color: rgba(111, 119, 138, 0.3);
+  border-top-color: var(--text-3);
+}
 .btn-update-close {
   display: flex;
   align-items: center;
