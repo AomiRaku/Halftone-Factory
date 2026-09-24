@@ -516,15 +516,32 @@
           window.location.reload();
         }
 
-        // 点击“点击刷新”：若新版本 SW 已在等待，先让它接管再刷新；
-        // 否则直接刷新即可（这时缓存里已经是新内容了）
-        function applyUpdate() {
-          var worker = (registration && registration.waiting) || pendingWorker;
-          if (!worker) {
-            reloadPage();
-            return;
-          }
+        // 用户点过“刷新”的意图。横幅可能在新版本 SW 还没装好时就弹出来，
+        // 那次刷新未必能完成接管；记下意图后，重新加载时再自动补一次。
+        var UPDATE_INTENT_KEY = 'hf-update-requested';
 
+        function readUpdateIntent() {
+          try {
+            return sessionStorage.getItem(UPDATE_INTENT_KEY) === '1';
+          } catch (err) {
+            return false;
+          }
+        }
+
+        function writeUpdateIntent() {
+          try {
+            sessionStorage.setItem(UPDATE_INTENT_KEY, '1');
+          } catch (err) {}
+        }
+
+        function clearUpdateIntent() {
+          try {
+            sessionStorage.removeItem(UPDATE_INTENT_KEY);
+          } catch (err) {}
+        }
+
+        // 让等待中的新版本 SW 接管，接管后刷新页面
+        function takeOver(worker) {
           var settled = false;
           var go = function () {
             if (settled) return;
@@ -539,17 +556,115 @@
             go();
             return;
           }
-          setTimeout(go, 3000); // 接管超时兜底，避免点不动
+          setTimeout(go, 4000); // 接管超时兜底，避免点不动
+        }
+
+        // 等 worker 装好再回调；超时或失败也回调，避免把用户卡住
+        function whenInstalled(worker, done, timeoutMs) {
+          if (!worker) {
+            done();
+            return;
+          }
+          if (worker.state === 'installed' || worker.state === 'activated') {
+            done();
+            return;
+          }
+
+          var settled = false;
+          var timer = setTimeout(function () {
+            if (settled) return;
+            settled = true;
+            done();
+          }, timeoutMs || 10000);
+
+          worker.addEventListener('statechange', function () {
+            if (settled) return;
+            if (worker.state === 'installed' || worker.state === 'activated' || worker.state === 'redundant') {
+              settled = true;
+              clearTimeout(timer);
+              done();
+            }
+          });
+        }
+
+        // 点击“点击刷新”
+        function applyUpdate() {
+          if (refreshing) return;
+
+          var reg = registration;
+          var waiting = (reg && reg.waiting) || pendingWorker;
+
+          // 新版本已经就绪：让它接管，接管后刷新
+          if (waiting && waiting.state !== 'installing') {
+            writeUpdateIntent();
+            takeOver(waiting);
+            return;
+          }
+
+          // 新版本还在安装：等它就绪再接管，别白刷一次
+          var pending = (reg && (reg.waiting || reg.installing)) || null;
+          if (pending) {
+            writeUpdateIntent();
+            whenInstalled(pending, function () {
+              if (reg.waiting) takeOver(reg.waiting);
+              else reloadPage();
+            });
+            return;
+          }
+
+          // 还没发现新版本。浏览器对 sw.js 的自动更新检查有 24 小时节流，
+          // 光刷新页面它可能压根不去取新的 sw.js，所以这里主动查一次。
+          writeUpdateIntent();
+          if (!reg) {
+            clearUpdateIntent();
+            reloadPage();
+            return;
+          }
+
+          var settled = false;
+          var finish = function () {
+            if (settled) return;
+            settled = true;
+
+            var ready = reg.waiting || pendingWorker;
+            var installing = reg.installing;
+            if (reg.waiting || (ready && ready.state === 'installed')) {
+              takeOver(reg.waiting || ready);
+            } else if (installing) {
+              whenInstalled(installing, function () {
+                if (reg.waiting) takeOver(reg.waiting);
+                else reloadPage();
+              });
+            } else {
+              // 确实没有新版本，只是缓存内容变了（缓存已是最新），直接刷新
+              clearUpdateIntent();
+              reloadPage();
+            }
+          };
+
+          try {
+            reg.update();
+          } catch (err) {}
+
+          setTimeout(finish, 4000);
         }
 
         function trackWorker(worker) {
           if (!worker) return;
           worker.addEventListener('statechange', function () {
+            if (worker.state !== 'installed') return;
             // 新 SW 安装完成，且本页原本就被旧 SW 控制 → 说明有更新可用
-            if (worker.state === 'installed' && (controlledOnLoad || navigator.serviceWorker.controller)) {
-              pendingWorker = worker;
-              showUpdateBanner();
+            if (!(controlledOnLoad || navigator.serviceWorker.controller)) return;
+            pendingWorker = worker;
+
+            // 用户已经点过刷新，这次直接帮他把更新做完
+            if (readUpdateIntent() && registration && registration.waiting) {
+              clearUpdateIntent();
+              takeOver(registration.waiting);
+              return;
             }
+
+            showUpdateBanner();
           });
         }
 
@@ -557,7 +672,13 @@
           if (!registration) return;
           var now = Date.now();
           if (now - lastUpdateCheck < UPDATE_CHECK_INTERVAL) return;
-          lastUpdateCheck = now;
+          forceUpdateCheck();
+        }
+
+        // 无条件去取一次 sw.js（浏览器自己的自动检查有 24 小时节流）
+        function forceUpdateCheck() {
+          if (!registration) return;
+          lastUpdateCheck = Date.now();
           try {
             registration.update();
           } catch (err) {}
@@ -580,24 +701,38 @@
           showUpdateBanner();
         });
 
-        window.addEventListener('load', function () {
-          navigator.serviceWorker.register('sw.js').then(function (reg) {
-            registration = reg;
+        function setupRegistration(reg) {
+          registration = reg;
 
-            if (reg.waiting) {
-              pendingWorker = reg.waiting;
-              showUpdateBanner();
+          if (reg.waiting) {
+            pendingWorker = reg.waiting;
+            // 上次点了刷新但没接管成功：这次直接帮他完成
+            if (readUpdateIntent()) {
+              clearUpdateIntent();
+              takeOver(reg.waiting);
+              return;
             }
+            showUpdateBanner();
+          }
 
+          trackWorker(reg.installing);
+          reg.addEventListener('updatefound', function () {
             trackWorker(reg.installing);
-            reg.addEventListener('updatefound', function () {
-              trackWorker(reg.installing);
-            });
+          });
 
-            // 浏览器导航时也会检查 sw.js，这里再主动查一次，更快发现新版本
-            setTimeout(checkForUpdate, 800);
-            askUpdateState();
-          }).catch(function () {});
+          // 浏览器对 sw.js 的自动更新检查有 24 小时节流，注册成功就主动查
+          setTimeout(forceUpdateCheck, 500);
+          setTimeout(forceUpdateCheck, 5000);
+          askUpdateState();
+        }
+
+        // 页面一开始就注册，不等 load：load 可能被慢资源拖住，
+        // 而新版本信息越早拿到越好
+        navigator.serviceWorker.register('sw.js').then(setupRegistration, function () {
+          // 注册失败时退回老流程再试一次
+          window.addEventListener('load', function () {
+            navigator.serviceWorker.register('sw.js').then(setupRegistration, function () {});
+          });
         });
 
         navigator.serviceWorker.addEventListener('controllerchange', askUpdateState);
