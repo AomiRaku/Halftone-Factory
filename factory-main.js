@@ -779,7 +779,7 @@ const showConfirm = (message, opts = {}) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
 });
 
-const APP_VERSION = 'build 4321';
+const APP_VERSION = 'build 4322';
 
 // 关于对话框
 const showAbout = () => {
