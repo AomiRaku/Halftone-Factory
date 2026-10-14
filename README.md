@@ -50,4 +50,4 @@ Made with ❤️ by [羽梦千景 Raku Inkyetta](https://github.com/AomiRaku)
 - 创建该项目的起因是，做图的时候发现网上的这类工具全都要付费导出或是限制使用，一气之下干脆自己弄一个。😋
 - 该项目为纯 HTML + CSS + JavaScript，由 TRAE 辅助编写。
 - 本项目的基础功能，源自 [halftone-lab](https://github.com/vibe-lark/halftone-lab) 的代码并进行了重构和优化改进。
-- 本项目采用 [MIT协议](LICENSE) 。
+- 本项目采用 [Apache 2.0 协议](LICENSE) 。

@@ -779,7 +779,7 @@ const showConfirm = (message, opts = {}) => new Promise((resolve) => {
   cancel.addEventListener('click', () => cleanup(false));
 });
 
-const APP_VERSION = 'build 4322';
+const APP_VERSION = 'build 4323';
 
 // 关于对话框
 const showAbout = () => {
@@ -798,7 +798,7 @@ const showAbout = () => {
         </div>
       </div>
       <div class="about-credits">
-        <div>本开源项目采用 <a href="https://github.com/AomiRaku/Halftone-Factory/blob/main/LICENSE" target="_blank" rel="noopener">MIT 协议</a></div>
+        <div>本开源项目采用 <a href="https://github.com/AomiRaku/Halftone-Factory/blob/main/LICENSE" target="_blank" rel="noopener">Apache 2.0 协议</a></div>
         <div>Made with ♥ By 羽梦千景 Raku Inkyetta</div>
       </div>
       <div class="confirm-actions">
